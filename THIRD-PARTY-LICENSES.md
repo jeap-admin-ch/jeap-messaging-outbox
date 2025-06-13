@@ -21,7 +21,7 @@ Apache License Version 2.0
  * ch.admin.bit.jeap:jeap-messaging-infrastructure-kafka - [ch.admin.bit.jeap:jeap-messaging-infrastructure-kafka](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-infrastructure-kafka)
  * ch.admin.bit.jeap:jeap-messaging-infrastructure-kafka-test - [ch.admin.bit.jeap:jeap-messaging-infrastructure-kafka-test](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-infrastructure-kafka-test)
  * ch.admin.bit.jeap:jeap-messaging-model - [ch.admin.bit.jeap:jeap-messaging-model](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-model)
- * ch.admin.bit.jeap:jeap-messaging-outbox - [ch.admin.bit.jeap:jeap-messaging-outbox](https://github.com/jeap-admin-ch/jeap-messaging/tree/main/jeap-messaging-outbox)
+ * ch.admin.bit.jeap:jeap-messaging-outbox - [ch.admin.bit.jeap:jeap-messaging-outbox](https://github.com/jeap-admin-ch/jeap-messaging-outbox/tree/main/jeap-messaging-outbox)
  * AWS SDK for Java - Core - [com.amazonaws:aws-java-sdk-core](https://aws.amazon.com/sdkforjava)
  * AWS Java SDK for AWS STS - [com.amazonaws:aws-java-sdk-sts](https://aws.amazon.com/sdkforjava)
  * JMES Path Query library - [com.amazonaws:jmespath-java](https://aws.amazon.com/sdkforjava)
