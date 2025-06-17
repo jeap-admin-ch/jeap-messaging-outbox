@@ -13,3 +13,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 Extracted jeap-messaging-outbox modules to its own repository
 Changelog before: see jeap-messaging
+## [8.46.0] - 2025-06-17
+### Changed
+- update jeap-messaging.version from 8.44.0 to 8.45.0
+- Update parent from 5.10.0 to 5.10.1
+- Update because to upload (central-publish) didn't work properly
+- update jeap-crypto.version from 3.21.0 to 3.22.1
+
+
