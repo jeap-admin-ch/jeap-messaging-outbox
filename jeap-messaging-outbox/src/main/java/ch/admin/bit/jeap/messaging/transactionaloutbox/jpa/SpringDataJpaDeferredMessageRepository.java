@@ -14,7 +14,7 @@ import java.util.List;
 
 @SuppressWarnings({"SqlResolve", "SqlNoDataSourceInspection"})
 @Repository
-interface SpringDataJpaDeferredMessageRepository extends JpaRepository<DeferredMessage, Long> {
+public interface SpringDataJpaDeferredMessageRepository extends JpaRepository<DeferredMessage, Long> {
 
     String READY_TO_BE_SENT_CONDITION = "sent_immediately IS NULL and sent_scheduled IS NULL AND failed IS NULL AND " +
             "(send_immediately = false OR (send_immediately = true AND CURRENT_TIMESTAMP > schedule_after)) " +
