@@ -27,7 +27,7 @@
 
     <artifactId>jeap-messaging-outbox-parent</artifactId>
     <name>${project.groupId}:${project.artifactId}</name>
-    <version>8.48.1-SNAPSHOT</version>
+    <version>8.48.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <parent>
