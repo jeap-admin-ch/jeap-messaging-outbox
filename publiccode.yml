@@ -14,11 +14,22 @@ softwareType: library
 description:
   en:
     localisedName: jeap-messaging-outbox
-    shortDescription: TODO (Max. 150 characters)
+    shortDescription: The jEAP Messaging outbox provides an implementation of the Transactional Outbox pattern for jEAP-based applications.
     longDescription: >
-      TODO (Min. 150 characters)
+      The jEAP Messaging Outbox is a library providing a robust implementation of the
+      Transactional Outbox pattern for jEAP-based applications. It ensures reliable
+      message delivery by persisting outgoing messages in the same database transaction
+      as the associated business data changes, and dispatching them only after a successful
+      commit. This eliminates the need for distributed transactions while guaranteeing
+      consistency, even if the messaging system is temporarily unavailable. The outbox
+      integrates with Kafka and SQL databases via JPA/JDBC, supports both immediate
+      post-commit sending and scheduled background relay processing, and includes
+      mechanisms for retrying or resending failed messages. It offers configurable
+      housekeeping, retention policies, and extensive operational metrics through
+      Micrometer to support monitoring and alerting.
     features:
-      - TODO
+      - Transactional Outbox Pattern ensuring reliable message delivery in conjunction with database transactions
+      - Integration with jEAP messaging and Spring Boot
 legal:
   license: Apache-2.0
 maintenance:
