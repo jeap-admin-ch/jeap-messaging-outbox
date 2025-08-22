@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.54.0] - 2025-08-22
+### Changed
+- update jeap-messaging from 8.54.0 to 8.55.0
+- Added a new optional field 'variant' to interface MessageType
+- Updated Domain Event and Command version to 1.3.0 to include the new 'variant' field
+
+
 ## [8.53.0] - 2025-08-14
 
 ### Changed
