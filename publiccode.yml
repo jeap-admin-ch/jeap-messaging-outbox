@@ -1,8 +1,8 @@
 publiccodeYmlVersion: 0.4.0
 name: jeap-messaging-outbox
 applicationSuite: jEAP
-softwareVersion: 8.53.0
-releaseDate: 2025-08-14
+softwareVersion: 8.54.0
+releaseDate: 2025-08-22
 url: "https://github.com/jeap-admin-ch/jeap-messaging-outbox.git"
 landingURL: "https://github.com/jeap-admin-ch/jeap"
 platforms:
