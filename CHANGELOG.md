@@ -8,8 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [9.3.0] - 2025-10-02
 
 ### Changed
-
 - Update parent from 5.14.0 to 5.15.0
+- update maven.api from 3.9.10 to 3.9.11
+- update protobuf-java from 4.31.1 to 4.32.1
+- update jeap-messaging from 9.2.0 to 9.3.0
+- update schema-registry-serde from 1.1.24 to 1.1.25
 
 ## [9.2.0] - 2025-09-26
 ### Changed
