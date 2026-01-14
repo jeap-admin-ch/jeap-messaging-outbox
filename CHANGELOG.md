@@ -8,8 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [11.8.0] - 2026-01-14
 
 ### Changed
-
 - Update parent from 5.16.8 to 5.17.0
+- ignore Sonar warnings in tests (MojoRule and AbstractMojoTestCase is deprecated) for the moment, java:S1874
+- update jeap-messaging from 11.7.0 to 11.8.1
 
 ## [11.7.0] - 2026-01-07
 
