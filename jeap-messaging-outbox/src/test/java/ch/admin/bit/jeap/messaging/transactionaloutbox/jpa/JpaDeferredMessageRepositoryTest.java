@@ -6,7 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -14,8 +17,8 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -76,7 +79,7 @@ class JpaDeferredMessageRepositoryTest {
         assertThat(foundPersistedDeferredMessage.getSentScheduled()).isNull();
         assertThat(foundPersistedDeferredMessage.getFailed()).isNull();
 
-        assertThatThrownBy( () -> jpaDeferredMessageRepository.markSentImmediately(42, sentTime))
+        assertThatThrownBy(() -> jpaDeferredMessageRepository.markSentImmediately(42, sentTime))
                 .isInstanceOf(TransactionalOutboxException.class)
                 .hasMessageContaining("42");
     }
@@ -95,7 +98,7 @@ class JpaDeferredMessageRepositoryTest {
         assertThat(foundPersistedDeferredMessage.getSentImmediately()).isNull();
         assertThat(foundPersistedDeferredMessage.getFailed()).isNull();
 
-        assertThatThrownBy( () -> jpaDeferredMessageRepository.markSentScheduled(42, sentTime))
+        assertThatThrownBy(() -> jpaDeferredMessageRepository.markSentScheduled(42, sentTime))
                 .isInstanceOf(TransactionalOutboxException.class)
                 .hasMessageContaining("42");
     }
@@ -115,7 +118,7 @@ class JpaDeferredMessageRepositoryTest {
         assertThat(foundPersistedDeferredMessage.getSentScheduled()).isNull();
         assertThat(foundPersistedDeferredMessage.getSentImmediately()).isNull();
 
-        assertThatThrownBy( () -> jpaDeferredMessageRepository.markFailed(42, failedTime, SendFailureReason.UNAUTHORIZED_ON_TOPIC))
+        assertThatThrownBy(() -> jpaDeferredMessageRepository.markFailed(42, failedTime, SendFailureReason.UNAUTHORIZED_ON_TOPIC))
                 .isInstanceOf(TransactionalOutboxException.class)
                 .hasMessageContaining("42");
     }
@@ -132,7 +135,7 @@ class JpaDeferredMessageRepositoryTest {
         DeferredMessage foundPersistedDeferredMessage = flushDetachAndFind(persistedDeferredMessage);
         assertThat(foundPersistedDeferredMessage.getScheduleAfter()).isEqualTo(scheduleAfter);
 
-        assertThatThrownBy( () -> jpaDeferredMessageRepository.setScheduleAfter(42, scheduleAfter))
+        assertThatThrownBy(() -> jpaDeferredMessageRepository.setScheduleAfter(42, scheduleAfter))
                 .isInstanceOf(TransactionalOutboxException.class)
                 .hasMessageContaining("42");
     }
@@ -150,7 +153,7 @@ class JpaDeferredMessageRepositoryTest {
         DeferredMessage resendDeferredMessage = flushDetachAndFind(failedDeferredMessage);
         assertThat(resendDeferredMessage.isResend()).isTrue();
 
-        assertThatThrownBy( () ->  jpaDeferredMessageRepository.markForResend(42, true))
+        assertThatThrownBy(() -> jpaDeferredMessageRepository.markForResend(42, true))
                 .isInstanceOf(TransactionalOutboxException.class)
                 .hasMessageContaining("42");
     }
@@ -181,7 +184,7 @@ class JpaDeferredMessageRepositoryTest {
 
     @Test
     void testFindCountMessagesReadyToBeSent() {
-        assertThat(jpaDeferredMessageRepository.countMessagesReadyToBeSent()).isEqualTo(0);
+        assertThat(jpaDeferredMessageRepository.countMessagesReadyToBeSent()).isZero();
         assertThat(jpaDeferredMessageRepository.findMessagesReadyToBeSent(1)).isEmpty();
         final DeferredMessage deferredMessage1 = createTestMessage(false);
         final DeferredMessage deferredMessage2 = createTestMessage(false);
@@ -225,10 +228,10 @@ class JpaDeferredMessageRepositoryTest {
         final ZonedDateTime failedStartFrom = ZonedDateTime.now();
         final ZonedDateTime failedBefore = failedStartFrom.plusMinutes(3);
 
-        assertThat(jpaDeferredMessageRepository.countFailedMessages(false)).isEqualTo(0);
-        assertThat(jpaDeferredMessageRepository.countFailedMessages(true)).isEqualTo(0);
-        assertThat(jpaDeferredMessageRepository.countFailedMessages(failedStartFrom, failedBefore, false)).isEqualTo(0);
-        assertThat(jpaDeferredMessageRepository.countFailedMessages(failedStartFrom, failedBefore, true)).isEqualTo(0);
+        assertThat(jpaDeferredMessageRepository.countFailedMessages(false)).isZero();
+        assertThat(jpaDeferredMessageRepository.countFailedMessages(true)).isZero();
+        assertThat(jpaDeferredMessageRepository.countFailedMessages(failedStartFrom, failedBefore, false)).isZero();
+        assertThat(jpaDeferredMessageRepository.countFailedMessages(failedStartFrom, failedBefore, true)).isZero();
 
         createAndSaveDeferredMessage(true, null, null, false);
         createAndSaveDeferredMessage(true, null, null, true);
@@ -287,11 +290,11 @@ class JpaDeferredMessageRepositoryTest {
         createAndSaveDeferredMessage(true, failedBefore, true, true);
 
         assertThat(jpaDeferredMessageRepository.findFailedMessages(failedStartFrom, failedBefore, false, 2))
-            .containsExactly(fm1, fm2);
+                .containsExactly(fm1, fm2);
         assertThat(jpaDeferredMessageRepository.findFailedMessages(failedStartFrom, failedBefore, true, 2))
                 .containsExactly(fm1r, fm2r);
         assertThat(jpaDeferredMessageRepository.findFailedMessages(fm1.getId(), failedBefore, false, 2))
-            .containsExactly(fm2, fm3);
+                .containsExactly(fm2, fm3);
         assertThat(jpaDeferredMessageRepository.findFailedMessages(fm1r.getId(), failedBefore, true, 2))
                 .containsExactly(fm2r, fm3r);
     }
@@ -323,27 +326,93 @@ class JpaDeferredMessageRepositoryTest {
         jpaDeferredMessageRepository.markSentImmediately(deferredMessage4.getId(), deleteBeforeDateTime.minusSeconds(1));
         testEntityManager.flush();
 
-        int numSentDeleted = jpaDeferredMessageRepository.deleteMessagesSentBefore(deleteBeforeDateTime);
+        Slice<Long> sentImmediatelyBeforeOrSentScheduledBefore = jpaDeferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(deleteBeforeDateTime, Pageable.ofSize(10));
+        int numSentDeleted = sentImmediatelyBeforeOrSentScheduledBefore.getNumberOfElements();
+        jpaDeferredMessageRepository.deleteAllById(sentImmediatelyBeforeOrSentScheduledBefore.toSet());
 
         assertThat(numSentDeleted).isEqualTo(2);
         List<DeferredMessage> allRemainingMessages = springDataJpaDeferredMessageRepository.findAll();
-        assertThat(allRemainingMessages.stream().map(DeferredMessage::getId).collect(Collectors.toList()))
+        assertThat(allRemainingMessages.stream().map(DeferredMessage::getId).toList())
                 .containsOnly(deferredMessage1.getId(), deferredMessage2.getId(), deferredMessage5.getId(), deferredMessage6.getId());
 
-        int numUnsentDeleted = jpaDeferredMessageRepository.deleteUnsentMessagesCreatedBefore(afterMessage6Created.minus(Duration.ofMillis(500)));
+        Slice<Long> sentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore = jpaDeferredMessageRepository.findSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(afterMessage6Created.minus(Duration.ofMillis(500)), Pageable.ofSize(10));
+        int numUnsentDeleted = sentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore.getNumberOfElements();
+        jpaDeferredMessageRepository.deleteAllById(sentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore.toSet());
 
         assertThat(numUnsentDeleted).isEqualTo(1);
         allRemainingMessages = springDataJpaDeferredMessageRepository.findAll();
-        assertThat(allRemainingMessages.stream().map(DeferredMessage::getId).collect(Collectors.toList()))
+        assertThat(allRemainingMessages.stream().map(DeferredMessage::getId).toList())
                 .containsOnly(deferredMessage1.getId(), deferredMessage2.getId(), deferredMessage6.getId());
+    }
+
+    @Test
+    void testFindSentImmediatelyBeforeOrSentScheduledBefore() {
+        ZonedDateTime dateTime = ZonedDateTime.now().minusDays(1);
+        assertThat(jpaDeferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(dateTime, Pageable.ofSize(10))).isEmpty();
+        final DeferredMessage deferredMessage1 = createTestMessage(false);
+        ReflectionTestUtils.setField(deferredMessage1, "sentImmediately", ZonedDateTime.now().minusDays(2));
+        final DeferredMessage deferredMessage2 = createTestMessage(false);
+        ReflectionTestUtils.setField(deferredMessage2, "sentScheduled", ZonedDateTime.now().minusDays(2));
+        final DeferredMessage deferredMessage3 = createTestMessage(false);
+        jpaDeferredMessageRepository.save(deferredMessage1);
+        jpaDeferredMessageRepository.save(deferredMessage2);
+        jpaDeferredMessageRepository.save(deferredMessage3);
+        testEntityManager.flush();
+
+        Slice<Long> foundMessages = jpaDeferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(dateTime, Pageable.ofSize(10));
+
+        assertThat(foundMessages.getNumberOfElements()).isEqualTo(2);
+        assertThat(foundMessages.toSet()).containsExactly(deferredMessage1.getId(), deferredMessage2.getId());
+
+    }
+
+    @Test
+    void testFindSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore() {
+        ZonedDateTime dateTime = ZonedDateTime.now().minusDays(1);
+        assertThat(jpaDeferredMessageRepository.findSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(dateTime, Pageable.ofSize(10))).isEmpty();
+        final DeferredMessage deferredMessage1 = createTestMessage(false);
+        ReflectionTestUtils.setField(deferredMessage1, "sentImmediately", null);
+        ReflectionTestUtils.setField(deferredMessage1, "sentScheduled", null);
+        ReflectionTestUtils.setField(deferredMessage1, "created", ZonedDateTime.now().minusDays(2));
+        final DeferredMessage deferredMessage2 = createTestMessage(false);
+        ReflectionTestUtils.setField(deferredMessage2, "sentImmediately", null);
+        ReflectionTestUtils.setField(deferredMessage2, "sentScheduled", null);
+        ReflectionTestUtils.setField(deferredMessage2, "created", ZonedDateTime.now().minusDays(2));
+        final DeferredMessage deferredMessage3 = createTestMessage(false);
+        jpaDeferredMessageRepository.save(deferredMessage1);
+        jpaDeferredMessageRepository.save(deferredMessage2);
+        jpaDeferredMessageRepository.save(deferredMessage3);
+        testEntityManager.flush();
+
+        Slice<Long> foundMessages = jpaDeferredMessageRepository.findSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(dateTime, Pageable.ofSize(10));
+
+        assertThat(foundMessages.getNumberOfElements()).isEqualTo(2);
+        assertThat(foundMessages.toSet()).containsExactly(deferredMessage1.getId(), deferredMessage2.getId());
+    }
+
+    @Test
+    void testDeleteAllById() {
+        assertThat(jpaDeferredMessageRepository.findAll()).isEmpty();
+        final DeferredMessage deferredMessage1 = createTestMessage(false);
+        final DeferredMessage deferredMessage2 = createTestMessage(false);
+        final DeferredMessage deferredMessage3 = createTestMessage(false);
+        jpaDeferredMessageRepository.save(deferredMessage1);
+        jpaDeferredMessageRepository.save(deferredMessage2);
+        jpaDeferredMessageRepository.save(deferredMessage3);
+        testEntityManager.flush();
+
+        jpaDeferredMessageRepository.deleteAllById(Set.of(deferredMessage1.getId(), deferredMessage2.getId()));
+
+        List<DeferredMessage> foundMessages = jpaDeferredMessageRepository.findAll();
+        assertThat(foundMessages).hasSize(1);
+        assertThat(foundMessages).containsExactly(deferredMessage3);
     }
 
     private DeferredMessage createAndSaveDeferredMessage(boolean sendImmediately, ZonedDateTime failedOrSucceededAt, Boolean failed, boolean resend) {
         long deferredMessageId = jpaDeferredMessageRepository.save(createTestMessage(sendImmediately)).getId();
         if (failed == null) {
             assertThat(failedOrSucceededAt).isNull();
-        }
-        else {
+        } else {
             assertThat(failed).isNotNull();
             if (failed) {
                 jpaDeferredMessageRepository.markFailed(deferredMessageId, failedOrSucceededAt, SendFailureReason.UNAUTHORIZED_ON_TOPIC);

@@ -74,7 +74,7 @@ public interface TransactionalOutboxConfiguration {
     boolean isScheduledRelayEnabled();
 
     /**
-     * Cron expression to schedule the house keeping tasks.
+     * Cron expression to schedule the housekeeping tasks.
      */
     String getHouseKeepingSchedule();
 
@@ -92,6 +92,18 @@ public interface TransactionalOutboxConfiguration {
      * Interval between metrics updates.
      */
     Duration getMetricsUpdateInterval();
+
+
+    /**
+     * Size for the housekeeping queries [pages]. Default is 500
+     */
+    int getHouseKeepingPageSize();
+
+    /**
+     * Max. pages to housekeep in one run. This limits the amount of time one housekeeping run can max. spend
+     * (the time to delete maxPages * pageSize elements of each kind).
+     */
+    int getHouseKeepingMaxPages();
 
 }
 

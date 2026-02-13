@@ -2,17 +2,20 @@ package ch.admin.bit.jeap.messaging.transactionaloutbox.jpa;
 
 import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.*;
 import io.micrometer.core.annotation.Timed;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Set;
 
-import static ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.OutboxMetrics.*;
+import static ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.OutboxMetrics.MESSAGES_READY_TO_BE_SENT_TIMER;
 
 @Repository
 @RequiredArgsConstructor
@@ -87,17 +90,18 @@ class JpaDeferredMessageRepository implements DeferredMessageRepository, FailedM
     }
 
     @Override
-    public int deleteMessagesSentBefore(ZonedDateTime dateTime) {
-        int deleteCount = springDataJpaDeferredMessageRepository.countSentImmediatelyBeforeOrSentScheduledBefore(dateTime, dateTime);
-        springDataJpaDeferredMessageRepository.deleteBySentImmediatelyBeforeOrSentScheduledBefore(dateTime, dateTime);
-        return deleteCount;
+    public Slice<Long> findSentImmediatelyBeforeOrSentScheduledBefore(ZonedDateTime dateTime, Pageable pageable) {
+        return springDataJpaDeferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(dateTime, dateTime, pageable);
     }
 
     @Override
-    public int deleteUnsentMessagesCreatedBefore(ZonedDateTime dateTime) {
-        int deleteCount = springDataJpaDeferredMessageRepository.countSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(dateTime);
-        springDataJpaDeferredMessageRepository.deleteBySentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(dateTime);
-        return deleteCount;
+    public Slice<Long> findSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(ZonedDateTime dateTime, Pageable pageable){
+        return springDataJpaDeferredMessageRepository.findSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(dateTime, pageable);
+    }
+
+    @Override
+    public void deleteAllById(Set<Long> ids){
+        springDataJpaDeferredMessageRepository.deleteAllById(ids);
     }
 
     @Override

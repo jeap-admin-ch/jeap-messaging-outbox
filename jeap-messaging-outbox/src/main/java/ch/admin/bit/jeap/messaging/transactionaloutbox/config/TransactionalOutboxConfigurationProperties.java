@@ -10,6 +10,7 @@ import java.time.Duration;
 @Data
 @AutoConfiguration(value="txOutboxConfigProps")
 @ConfigurationProperties(prefix = "jeap.messaging.transactional-outbox")
+@SuppressWarnings("java:S1104")
 public class TransactionalOutboxConfigurationProperties implements TransactionalOutboxConfiguration {
 
     public Duration pollDelay = Duration.ofSeconds(2);
@@ -29,6 +30,10 @@ public class TransactionalOutboxConfigurationProperties implements Transactional
     public boolean scheduledRelayEnabled = true;
 
     public String houseKeepingSchedule = "0 0 3 * * *";
+
+    public int houseKeepingPageSize = 500;
+
+    public int houseKeepingMaxPages = 100000;
 
     public Duration sentMessageRetentionDuration = Duration.ofDays(2);
 

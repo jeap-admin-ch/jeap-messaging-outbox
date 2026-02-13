@@ -20,6 +20,8 @@ import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.test.annotation.Commit;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -29,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.timeout;
@@ -101,7 +102,7 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
         TestTransaction.end();
         verify(testEventListener, timeout(TEST_TIMEOUT).times(2)).receive(testEventArgumentCaptor.capture(), testMessageKeyArgumentCaptor.capture());
         final List<TestEvent> receivedEvents = testEventArgumentCaptor.getAllValues();
-        assertThat(receivedEvents.stream().map(event -> event.getIdentity().getIdempotenceId()).collect(Collectors.toList()))
+        assertThat(receivedEvents.stream().map(event -> event.getIdentity().getIdempotenceId()).toList())
                 .containsOnly(idempotenceIdEvent1, idempotenceIdEvent2);
         final List<TestMessageKey> receivedKeys = testMessageKeyArgumentCaptor.getAllValues();
         assertThat(receivedKeys).containsOnly(testMessageKey, null);
@@ -112,13 +113,14 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
         TestTransaction.start();
         final List<DeferredMessage> deferredMessages = deferredMessageRepository.findAll();
         assertThat(deferredMessages).hasSize(2);
-        assertThat(deferredMessages.stream().map(DeferredMessage::getMessageIdempotenceId).collect(Collectors.toList()))
+        assertThat(deferredMessages.stream().map(DeferredMessage::getMessageIdempotenceId).toList())
                 .containsOnly(idempotenceIdEvent1, idempotenceIdEvent2);
         assertThat(deferredMessages.get(0).getSentImmediately()).isNotNull();
         assertThat(deferredMessages.get(0).getFailed()).isNull();
         assertThat(deferredMessages.get(1).getSentScheduled()).isNotNull();
         assertThat(deferredMessages.get(1).getFailed()).isNull();
-        deferredMessageRepository.deleteMessagesSentBefore(ZonedDateTime.now());
+        Slice<Long> sentImmediatelyBeforeOrSentScheduledBefore = deferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(ZonedDateTime.now(), Pageable.ofSize(10));
+        deferredMessageRepository.deleteAllById(sentImmediatelyBeforeOrSentScheduledBefore.toSet());
         TestTransaction.end();
 
         final Long traceId = deferredMessages.get(0).getTraceContext().getTraceId();
@@ -172,8 +174,8 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
         final ConsumerRecords<Object, Object> records = consumer.poll(Duration.ofSeconds(10));
         consumer.close();
 
-        for (ConsumerRecord<Object, Object> record : records) {
-            final String headerTraceId = (new String(record.headers().lastHeader("traceparent").value())).split("-")[1];
+        for (ConsumerRecord<Object, Object> currentRecord : records) {
+            final String headerTraceId = (new String(currentRecord.headers().lastHeader("traceparent").value())).split("-")[1];
             assertThat(headerTraceId).isEqualTo(traceIdString);
         }
         assertThat(records.count()).isEqualTo(count);

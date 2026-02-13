@@ -1,7 +1,11 @@
 package ch.admin.bit.jeap.messaging.transactionaloutbox.outbox;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Set;
 
 public interface DeferredMessageRepository {
 
@@ -23,9 +27,11 @@ public interface DeferredMessageRepository {
 
     List<DeferredMessage> findMessagesReadyToBeSent(int numMessages);
 
-    int deleteMessagesSentBefore(ZonedDateTime timestamp);
+    Slice<Long> findSentImmediatelyBeforeOrSentScheduledBefore(ZonedDateTime timestamp, Pageable pageable);
 
-    int deleteUnsentMessagesCreatedBefore(ZonedDateTime timestamp);
+    Slice<Long> findSentImmediatelyIsNullAndSentScheduledIsNullAndCreatedBefore(ZonedDateTime timestamp, Pageable pageable);
+
+    void deleteAllById(Set<Long> ids);
 
     int countMessagesReadyToBeSent();
 
