@@ -1,4 +1,4 @@
-publiccodeYmlVersion: 0.4.0
+publiccodeYmlVersion: 0.5.0
 name: jeap-messaging-outbox
 applicationSuite: jEAP
 softwareVersion: 11.16.0
@@ -17,7 +17,7 @@ organisation:
 description:
   en:
     localisedName: jeap-messaging-outbox
-    shortDescription: The jEAP Messaging outbox provides an implementation of the Transactional Outbox pattern for jEAP-based applications.
+    shortDescription: This library is an implementation of the [Transactional outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html)
     longDescription: >
       The jEAP Messaging Outbox is a library providing a robust implementation of the
       Transactional Outbox pattern for jEAP-based applications. It ensures reliable
