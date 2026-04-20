@@ -8,7 +8,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [13.5.0] - 2026-04-20
 ### Changed
 - update jeap-messaging from 13.4.0 to 13.5.0
-- Update parent from 6.0.3 to 7.0.0-alpha-springboot4
 
 ## [13.4.0] - 2026-04-16
 
