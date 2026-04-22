@@ -33,7 +33,7 @@
     <parent>
         <artifactId>jeap-internal-spring-boot-parent</artifactId>
         <groupId>ch.admin.bit.jeap</groupId>
-        <version>7.0.3-alpha-springboot4</version>
+        <version>7.0.4-alpha-springboot4</version>
     </parent>
 
     <modules>
@@ -52,12 +52,6 @@
                 <groupId>ch.admin.bit.jeap</groupId>
                 <artifactId>jeap-messaging-outbox</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.rest-assured</groupId>
-                <artifactId>rest-assured</artifactId>
-                <version>6.0.0</version>
-                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
