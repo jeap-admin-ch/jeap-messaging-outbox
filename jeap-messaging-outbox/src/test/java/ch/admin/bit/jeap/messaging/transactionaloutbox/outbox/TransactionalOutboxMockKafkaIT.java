@@ -9,11 +9,13 @@ import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.testsupport.Outbox
 import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.testsupport.StringMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.annotation.Commit;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
@@ -37,6 +39,7 @@ import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER
 @DataJpaTest
 @ContextConfiguration(classes = OutboxMockKafkaNoSchedulingTestConfig.class)
 @DirtiesContext(classMode = AFTER_EACH_TEST_METHOD)
+@ExtendWith(MockitoExtension.class)
 class TransactionalOutboxMockKafkaIT {
 
     private static final String TOPIC_1 = "test-topic-1";

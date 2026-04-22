@@ -13,7 +13,7 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -22,7 +22,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @EnableAutoConfiguration
 @DataJpaTest
 @ContextConfiguration(classes = {OutboxSchedulingConfig.class, OutboxMetricsConfig.class, TransactionalOutboxConfigurationProperties.class})
-public class MetricsUpdateSchedulerIT {
+class MetricsUpdateSchedulerIT {
 
     @MockitoBean
     DeferredMessageRepository deferredMessageRepository;

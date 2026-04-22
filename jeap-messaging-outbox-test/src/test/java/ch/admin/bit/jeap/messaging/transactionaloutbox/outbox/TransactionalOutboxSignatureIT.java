@@ -10,10 +10,12 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.annotation.Commit;
@@ -35,7 +37,7 @@ import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("SameParameterValue")
 @DirtiesContext
-@AutoConfigureObservability
+@AutoConfigureMetrics
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "management.endpoint.prometheus.access=unrestricted",
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.verify;
                 "jeap.messaging.kafka.exposeMessageKeyToConsumer=true"})
 @Slf4j
 @ActiveProfiles("test-signing")
+@ExtendWith(MockitoExtension.class)
 class TransactionalOutboxSignatureIT extends KafkaIntegrationTestBase {
 
     @Autowired

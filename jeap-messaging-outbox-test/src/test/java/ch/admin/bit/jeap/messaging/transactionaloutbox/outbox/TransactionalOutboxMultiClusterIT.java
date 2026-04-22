@@ -19,6 +19,8 @@ import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.test.annotation.Commit;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,12 +42,10 @@ import static org.awaitility.Awaitility.await;
         "jeap.messaging.kafka.embedded=false",
         "jeap.messaging.kafka.systemName=test",
         "jeap.messaging.kafka.errorTopicName=errorTopic",
-        "jeap.messaging.kafka.cluster.default.bootstrapServers=localhost:" + (EmbeddedKafkaMultiClusterExtension.BASE_PORT + PORT_OFFSET),
         "jeap.messaging.kafka.cluster.default.securityProtocol=PLAINTEXT",
         "jeap.messaging.kafka.cluster.default.schemaRegistryUrl=mock://registry-outbox-1",
         "jeap.messaging.kafka.cluster.default.schemaRegistryUsername=unused",
         "jeap.messaging.kafka.cluster.default.schemaRegistryPassword=unused",
-        "jeap.messaging.kafka.cluster.secondcluster.bootstrapServers=localhost:" + (EmbeddedKafkaMultiClusterExtension.BASE_PORT + PORT_OFFSET + 1),
         "jeap.messaging.kafka.cluster.secondcluster.securityProtocol=PLAINTEXT",
         "jeap.messaging.kafka.cluster.secondcluster.schemaRegistryUrl=mock://registry-outbox-2",
         "jeap.messaging.kafka.cluster.secondcluster.schemaRegistryUsername=unused",
@@ -55,6 +55,12 @@ import static org.awaitility.Awaitility.await;
 class TransactionalOutboxMultiClusterIT {
 
     static final int PORT_OFFSET = 50;
+
+    @DynamicPropertySource
+    static void registerBootstrapServers(DynamicPropertyRegistry registry) {
+        registry.add("jeap.messaging.kafka.cluster.default.bootstrapServers", embeddedKafkaMultiClusterExtension::getBootstrapServers1);
+        registry.add("jeap.messaging.kafka.cluster.secondcluster.bootstrapServers", embeddedKafkaMultiClusterExtension::getBootstrapServers2);
+    }
 
     @RegisterExtension
     static EmbeddedKafkaMultiClusterExtension embeddedKafkaMultiClusterExtension =
