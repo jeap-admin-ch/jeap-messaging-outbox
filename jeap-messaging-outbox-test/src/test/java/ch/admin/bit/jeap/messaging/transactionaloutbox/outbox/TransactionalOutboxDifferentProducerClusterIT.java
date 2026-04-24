@@ -32,7 +32,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.TestEventConsumer.TOPIC;
-import static ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.TransactionalOutboxDifferentProducerClusterIT.PORT_OFFSET;
 import static ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.TransactionalOutboxDifferentProducerClusterIT.TestConsumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -54,8 +53,6 @@ import static org.awaitility.Awaitility.await;
 @Import(TestConsumer.class)
 class TransactionalOutboxDifferentProducerClusterIT {
 
-    static final int PORT_OFFSET = 60;
-
     @DynamicPropertySource
     static void registerBootstrapServers(DynamicPropertyRegistry registry) {
         registry.add("jeap.messaging.kafka.cluster.default.bootstrapServers", embeddedKafkaMultiClusterExtension::getBootstrapServers1);
@@ -64,7 +61,7 @@ class TransactionalOutboxDifferentProducerClusterIT {
 
     @RegisterExtension
     static EmbeddedKafkaMultiClusterExtension embeddedKafkaMultiClusterExtension =
-            EmbeddedKafkaMultiClusterExtension.withPortOffset(PORT_OFFSET);
+            new EmbeddedKafkaMultiClusterExtension();
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
