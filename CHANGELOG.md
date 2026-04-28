@@ -8,6 +8,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 > - Spring Boot 3 maintenance (bug fixes, patches, and regular updates) continues on branch `release/springboot3`.
 > - The Spring Boot 4 upgrade process happens on the `master` branch, with the goal of releasing Spring Boot 4 compatible versions of all jeap components in a single major release.
 
+## [14.3.0-alpha-springboot4] - 2026-04-29
+
+### Changed
+
+- Tracing stack migrated from Brave/Zipkin to OpenTelemetry
+
+### Breaking — schema migration required in downstream services
+
+- New column `sampled boolean` on `deferred_message`. Needed so the sampling decision captured from the origin trace
+  is preserved across the outbox relay cycle.
+- Downstream services must ship a Flyway migration of the form:
+  ```sql
+  ALTER TABLE deferred_message ADD COLUMN sampled boolean;
+  ```
+  See `jeap-messaging-outbox-test/src/test/resources/db/migration/common/V2__add-sampled-to-deferred-message.sql`
+  for the reference delta used by this library's own integration tests. Rows written by previous versions carry
+  `NULL` and are treated as sampled on relay (legacy-compatible default).
+
 ## [14.2.0-alpha-springboot4] - 2026-04-24
 
 ### Changed

@@ -23,7 +23,8 @@ CREATE TABLE deferred_message
     trace_id               bigint,
     span_id                bigint,
     parent_span_id         bigint,
-    trace_id_string        varchar
+    trace_id_string        varchar,
+    sampled                boolean
 );
 
 CREATE INDEX deferred_message_created ON deferred_message (created);

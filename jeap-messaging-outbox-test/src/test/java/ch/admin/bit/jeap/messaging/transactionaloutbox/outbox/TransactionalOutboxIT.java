@@ -1,14 +1,16 @@
 package ch.admin.bit.jeap.messaging.transactionaloutbox.outbox;
 
-import brave.kafka.clients.KafkaTracing;
-import brave.propagation.TraceContext;
 import ch.admin.bit.jeap.messaging.kafka.KafkaConfiguration;
 import ch.admin.bit.jeap.messaging.kafka.contract.ContractsValidator;
 import ch.admin.bit.jeap.messaging.kafka.interceptor.JeapKafkaMessageCallback;
 import ch.admin.bit.jeap.messaging.kafka.properties.KafkaProperties;
 import ch.admin.bit.jeap.messaging.kafka.test.KafkaIntegrationTestBase;
+import ch.admin.bit.jeap.messaging.kafka.tracing.TraceContext;
+import ch.admin.bit.jeap.messaging.kafka.tracing.TraceContextProvider;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.test.TestEvent;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.test.TestMessageKey;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
@@ -20,7 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -40,9 +42,12 @@ import static org.mockito.Mockito.verify;
 
 @SuppressWarnings("SameParameterValue")
 @DirtiesContext
-@AutoConfigureMetrics
+@AutoConfigureTracing
 @ExtendWith(MockitoExtension.class)
-@SpringBootTest(properties = {"jeap.messaging.kafka.exposeMessageKeyToConsumer=true"})
+@SpringBootTest(properties = {
+        "jeap.messaging.kafka.exposeMessageKeyToConsumer=true",
+        "management.tracing.sampling.probability=1.0"
+})
 @Slf4j
 class TransactionalOutboxIT extends KafkaIntegrationTestBase {
 
@@ -67,9 +72,10 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
     @Autowired
     private KafkaConfiguration kafkaConfiguration;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
-    private KafkaTracing kafkaTracing;
+    private Tracer tracer;
+    @Autowired
+    private TraceContextProvider traceContextProvider;
     @Autowired
     DeferredMessageTestUtil deferredMessageTestUtil;
 
@@ -84,61 +90,64 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
     @Test
     void testOutboxSend() {
 
-        // Start tracing explicitly because the spring test transaction manager doesn't seem to get instrumented by Brave.
-        // Normally, the platform transaction manager is instrumented by brave as TracePlatformTransactionManager, but in
-        // the spring test transaction case the transaction manager does not get instrumented and stays a JpaTransactionManager.
-        // Therefore, tracing must be started explicitly in this test as we want to test trace context propagation in this test, too.
-        kafkaTracing.messagingTracing().tracing().tracer().startScopedSpan("junit");
-        final TraceContext originalTraceContext = kafkaTracing.messagingTracing().tracing().currentTraceContext().get();
+        // Start a span explicitly because Spring's test-transaction manager is a plain JpaTransactionManager that
+        // does not get wrapped in a tracing manager. We want to verify that the jEAP outbox captures the currently
+        // active trace context when sendMessage is called, so we open a scope here.
+        Span junitSpan = tracer.nextSpan().name("junit").start();
+        try (Tracer.SpanInScope ignored = tracer.withSpan(junitSpan)) {
+            TraceContext expectedTraceContext = traceContextProvider.getTraceContext();
+            assertThat(expectedTraceContext).isNotNull();
 
-        assertThat(deferredMessageRepository.findAll()).isEmpty();
+            assertThat(deferredMessageRepository.findAll()).isEmpty();
 
-        final String idempotenceIdEvent1 = "idempotenceId1";
-        final String idempotenceIdEvent2 = "idempotenceId2";
-        final TestEvent testEvent1 = TestEventBuilder.create().idempotenceId(idempotenceIdEvent1).build();
-        final TestEvent testEvent2 = TestEventBuilder.create().idempotenceId(idempotenceIdEvent2).build();
-        final TestMessageKey testMessageKey = TestMessageKey.newBuilder().setSomeProperty("someValue").build();
+            final String idempotenceIdEvent1 = "idempotenceId1";
+            final String idempotenceIdEvent2 = "idempotenceId2";
+            final TestEvent testEvent1 = TestEventBuilder.create().idempotenceId(idempotenceIdEvent1).build();
+            final TestEvent testEvent2 = TestEventBuilder.create().idempotenceId(idempotenceIdEvent2).build();
+            final TestMessageKey testMessageKey = TestMessageKey.newBuilder().setSomeProperty("someValue").build();
 
-        transactionalOutbox.sendMessage(testEvent1, testMessageKey, TestEventConsumer.TOPIC);
-        transactionalOutbox.sendMessageScheduled(testEvent2, TestEventConsumer.TOPIC);
+            transactionalOutbox.sendMessage(testEvent1, testMessageKey, TestEventConsumer.TOPIC);
+            transactionalOutbox.sendMessageScheduled(testEvent2, TestEventConsumer.TOPIC);
 
-        TestTransaction.end();
-        verify(testEventListener, timeout(TEST_TIMEOUT).times(2)).receive(testEventArgumentCaptor.capture(), testMessageKeyArgumentCaptor.capture());
-        final List<TestEvent> receivedEvents = testEventArgumentCaptor.getAllValues();
-        assertThat(receivedEvents.stream().map(event -> event.getIdentity().getIdempotenceId()).toList())
-                .containsOnly(idempotenceIdEvent1, idempotenceIdEvent2);
-        final List<TestMessageKey> receivedKeys = testMessageKeyArgumentCaptor.getAllValues();
-        assertThat(receivedKeys).containsOnly(testMessageKey, null);
+            TestTransaction.end();
+            verify(testEventListener, timeout(TEST_TIMEOUT).times(2)).receive(testEventArgumentCaptor.capture(), testMessageKeyArgumentCaptor.capture());
+            final List<TestEvent> receivedEvents = testEventArgumentCaptor.getAllValues();
+            assertThat(receivedEvents.stream().map(event -> event.getIdentity().getIdempotenceId()).toList())
+                    .containsOnly(idempotenceIdEvent1, idempotenceIdEvent2);
+            final List<TestMessageKey> receivedKeys = testMessageKeyArgumentCaptor.getAllValues();
+            assertThat(receivedKeys).containsOnly(testMessageKey, null);
 
-        // Make sure the relay process finished sending the scheduled message
-        deferredMessageTestUtil.waitTillAllMessagesProcessed();
+            // Make sure the relay process finished sending the scheduled message
+            deferredMessageTestUtil.waitTillAllMessagesProcessed();
 
-        TestTransaction.start();
-        final List<DeferredMessage> deferredMessages = deferredMessageRepository.findAll();
-        assertThat(deferredMessages).hasSize(2);
-        assertThat(deferredMessages.stream().map(DeferredMessage::getMessageIdempotenceId).toList())
-                .containsOnly(idempotenceIdEvent1, idempotenceIdEvent2);
-        assertThat(deferredMessages.get(0).getSentImmediately()).isNotNull();
-        assertThat(deferredMessages.get(0).getFailed()).isNull();
-        assertThat(deferredMessages.get(1).getSentScheduled()).isNotNull();
-        assertThat(deferredMessages.get(1).getFailed()).isNull();
-        Slice<Long> sentImmediatelyBeforeOrSentScheduledBefore = deferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(ZonedDateTime.now(), Pageable.ofSize(10));
-        deferredMessageRepository.deleteAllById(sentImmediatelyBeforeOrSentScheduledBefore.toSet());
-        TestTransaction.end();
+            TestTransaction.start();
+            final List<DeferredMessage> deferredMessages = deferredMessageRepository.findAll();
+            assertThat(deferredMessages).hasSize(2);
+            assertThat(deferredMessages.stream().map(DeferredMessage::getMessageIdempotenceId).toList())
+                    .containsOnly(idempotenceIdEvent1, idempotenceIdEvent2);
+            assertThat(deferredMessages.get(0).getSentImmediately()).isNotNull();
+            assertThat(deferredMessages.get(0).getFailed()).isNull();
+            assertThat(deferredMessages.get(1).getSentScheduled()).isNotNull();
+            assertThat(deferredMessages.get(1).getFailed()).isNull();
+            Slice<Long> sentImmediatelyBeforeOrSentScheduledBefore = deferredMessageRepository.findSentImmediatelyBeforeOrSentScheduledBefore(ZonedDateTime.now(), Pageable.ofSize(10));
+            deferredMessageRepository.deleteAllById(sentImmediatelyBeforeOrSentScheduledBefore.toSet());
+            TestTransaction.end();
 
-        final Long traceId = deferredMessages.get(0).getTraceContext().getTraceId();
-        final String traceIdString = deferredMessages.get(0).getTraceContext().getTraceIdString();
+            final OutboxTraceContext actualTraceContext = deferredMessages.getFirst().getTraceContext();
+            assertThat(actualTraceContext.getTraceIdHigh()).isEqualTo(expectedTraceContext.getTraceIdHigh());
+            assertThat(actualTraceContext.getTraceId()).isEqualTo(expectedTraceContext.getTraceId());
+            assertThat(actualTraceContext.getSpanId()).isEqualTo(expectedTraceContext.getSpanId());
+            assertThat(actualTraceContext.getParentSpanId()).isEqualTo(expectedTraceContext.getParentSpanId());
+            assertThat(actualTraceContext.getTraceIdString()).isEqualTo(expectedTraceContext.getTraceIdString());
+            assertThat(actualTraceContext.getSampled()).isEqualTo(expectedTraceContext.getSampled());
+            assertThat(deferredMessages.stream().filter(dm -> dm.getTraceContext().getTraceId().equals(actualTraceContext.getTraceId())).count()).isEqualTo(2);
+            assertHeaderFromConsumedMessage(actualTraceContext.getTraceIdString(), 2);
 
-        assertThat(deferredMessages.get(0).getTraceContext().getTraceIdHigh()).isEqualTo(originalTraceContext.traceIdHigh());
-        assertThat(traceId).isEqualTo(originalTraceContext.traceId());
-        assertThat(deferredMessages.get(0).getTraceContext().getParentSpanId()).isEqualTo(originalTraceContext.parentId());
-        assertThat(deferredMessages.get(0).getTraceContext().getSpanId()).isEqualTo(originalTraceContext.spanId());
-        assertThat(traceIdString).isEqualTo(originalTraceContext.traceIdString());
-        assertThat(deferredMessages.stream().filter(dm -> dm.getTraceContext().getTraceId().equals(traceId)).count()).isEqualTo(2);
-        assertHeaderFromConsumedMessage(traceIdString, 2);
-
-        verify(jeapKafkaMessageCallback).onSend(testEvent1, TestEventConsumer.TOPIC);
-        verify(jeapKafkaMessageCallback).onSend(testEvent2, TestEventConsumer.TOPIC);
+            verify(jeapKafkaMessageCallback).onSend(testEvent1, TestEventConsumer.TOPIC);
+            verify(jeapKafkaMessageCallback).onSend(testEvent2, TestEventConsumer.TOPIC);
+        } finally {
+            junitSpan.end();
+        }
     }
 
     @Transactional

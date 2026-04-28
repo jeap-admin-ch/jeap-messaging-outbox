@@ -87,7 +87,7 @@ class TransactionalOutboxMockKafkaIT {
 
     @BeforeEach
     void setup() {
-        when(outboxTracing.retrieveCurrentTraceContext()).thenReturn(OutboxTraceContext.builder().traceId(1L).spanId(2L).parentSpanId(3L).build());
+        when(outboxTracing.retrieveCurrentTraceContext()).thenReturn(OutboxTraceContext.builder().traceId(1L).spanId(2L).parentSpanId(3L).sampled(Boolean.TRUE).build());
     }
 
 
@@ -109,7 +109,7 @@ class TransactionalOutboxMockKafkaIT {
         final ZonedDateTime afterSend = ZonedDateTime.now();
         final List<DeferredMessage> allMessages = deferredMessageRepository.findAll();
         assertThat(allMessages).hasSize(1);
-        final DeferredMessage sentMessage = allMessages.get(0);
+        final DeferredMessage sentMessage = allMessages.getFirst();
         assertDeferredMessage(sentMessage, TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 1, beforeSend, afterSend, null, false);
     }
 
@@ -123,7 +123,7 @@ class TransactionalOutboxMockKafkaIT {
         final ZonedDateTime afterSend = ZonedDateTime.now();
         final List<DeferredMessage> allMessages = deferredMessageRepository.findAll();
         assertThat(allMessages).hasSize(1);
-        final DeferredMessage sentMessage = allMessages.get(0);
+        final DeferredMessage sentMessage = allMessages.getFirst();
         assertDeferredMessage(sentMessage, TEST_MESSAGE_2, TEST_KEY_2, TOPIC_2, false, 0, beforeSend, afterSend, null, false);
     }
 
@@ -141,7 +141,7 @@ class TransactionalOutboxMockKafkaIT {
         final List<DeferredMessage> allMessages = deferredMessageRepository.findAll();
         allMessages.sort(Comparator.comparing(DeferredMessage::getCreated));
         assertThat(allMessages).hasSize(3);
-        assertDeferredMessage(allMessages.get(0), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, null, false);
+        assertDeferredMessage(allMessages.getFirst(), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, null, false);
         assertDeferredMessage(allMessages.get(1), TEST_MESSAGE_2, null, TOPIC_2, false, 2, beforeSend, afterSend, null, false);
         assertDeferredMessage(allMessages.get(2), TEST_MESSAGE_3, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, null, false);
     }
@@ -174,7 +174,7 @@ class TransactionalOutboxMockKafkaIT {
             TestTransaction.start();
             final List<DeferredMessage> allMessages = deferredMessageRepository.findAll();
             assertThat(allMessages).hasSize(1);
-            final DeferredMessage sentMessage = allMessages.get(0);
+            final DeferredMessage sentMessage = allMessages.getFirst();
             assertDeferredMessage(sentMessage, TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 1, beforeSend, afterSend, afterCommit, false);
             TestTransaction.end();
         });
@@ -198,7 +198,7 @@ class TransactionalOutboxMockKafkaIT {
             TestTransaction.start();
             final List<DeferredMessage> allMessages = deferredMessageRepository.findAll();
             assertThat(allMessages).hasSize(1);
-            final DeferredMessage sentMessage = allMessages.get(0);
+            final DeferredMessage sentMessage = allMessages.getFirst();
             assertDeferredMessage(sentMessage, TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, false, 0, beforeSend, afterSend, null, false);
             TestTransaction.end();
         });
@@ -223,14 +223,14 @@ class TransactionalOutboxMockKafkaIT {
             verify(deferredMessageSenderMock, times(2)).sendAsImmediate(deferredMessageCaptor.capture());
             final List<DeferredMessage> sentImmediatelyMessages = deferredMessageCaptor.getAllValues();
             assertThat(sentImmediatelyMessages.size()).isEqualTo(2);
-            assertDeferredMessage(sentImmediatelyMessages.get(0), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, null, false);
+            assertDeferredMessage(sentImmediatelyMessages.getFirst(), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, null, false);
             assertDeferredMessage(sentImmediatelyMessages.get(1), TEST_MESSAGE_3, null, TOPIC_1, true, 2, beforeSend, afterSend, null, false);
 
             TestTransaction.start();
             final List<DeferredMessage> sentMessages = deferredMessageRepository.findAll();
             sentMessages.sort(Comparator.comparing(DeferredMessage::getCreated));
             assertThat(sentMessages).hasSize(3);
-            assertDeferredMessage(sentMessages.get(0), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, afterCommit, false);
+            assertDeferredMessage(sentMessages.getFirst(), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 2, beforeSend, afterSend, afterCommit, false);
             assertDeferredMessage(sentMessages.get(1), TEST_MESSAGE_2, null, TOPIC_2, false, 2, beforeSend, afterSend, null, false);
             assertDeferredMessage(sentMessages.get(2), TEST_MESSAGE_3, null, TOPIC_1, true, 2, beforeSend, afterSend, afterCommit, false);
             TestTransaction.end();
@@ -258,7 +258,7 @@ class TransactionalOutboxMockKafkaIT {
             TestTransaction.start();
             final List<DeferredMessage> allMessages = deferredMessageRepository.findAll();
             assertThat(allMessages).hasSize(1);
-            final DeferredMessage sentMessage = allMessages.get(0);
+            final DeferredMessage sentMessage = allMessages.getFirst();
             assertDeferredMessage(sentMessage, TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 1, beforeSend, afterSend, null, false);
             TestTransaction.end();
         });
@@ -301,7 +301,7 @@ class TransactionalOutboxMockKafkaIT {
             verify(deferredMessageSenderMock, times(3)).sendAsImmediate(deferredMessageCaptor.capture());
             verifyNoMoreInteractions(deferredMessageSenderMock);
             final List<DeferredMessage> deferredMessages = deferredMessageCaptor.getAllValues();
-            assertDeferredMessage(deferredMessages.get(0), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 4, beforeSend, afterSend, null, false);
+            assertDeferredMessage(deferredMessages.getFirst(), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 4, beforeSend, afterSend, null, false);
             assertDeferredMessage(deferredMessages.get(1), TEST_MESSAGE_2, TEST_KEY_2, TOPIC_2, true, 4, beforeSend, afterSend, null, false);
             assertDeferredMessage(deferredMessages.get(2), TEST_MESSAGE_3, TEST_KEY_3, TOPIC_3, true, 4, beforeSend, afterSend, null, false);
 
@@ -311,7 +311,7 @@ class TransactionalOutboxMockKafkaIT {
             allMessages.sort(Comparator.comparing(DeferredMessage::getCreated));
             assertThat(allMessages).hasSize(4);
             // TEST_MESSAGE_1 failed
-            assertDeferredMessage(allMessages.get(0), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 4, beforeSend, afterSend, null, true);
+            assertDeferredMessage(allMessages.getFirst(), TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1, true, 4, beforeSend, afterSend, null, true);
             // TEST_MESSAGE_2 sent
             assertDeferredMessage(allMessages.get(1), TEST_MESSAGE_2, TEST_KEY_2, TOPIC_2, true, 4, beforeSend, afterSend, afterCommit, false);
             // TEST_MESSAGE_3 unsent because of error
@@ -354,7 +354,7 @@ class TransactionalOutboxMockKafkaIT {
             TestTransaction.start();
             final ZonedDateTime afterDelivery = ZonedDateTime.now();
             assertFailedMessages(beforeSend, afterDelivery, 2, 0);
-            FailedMessage failedMessage = transactionalOutbox.findFailedMessages(0, afterDelivery, false, 1).get(0);
+            FailedMessage failedMessage = transactionalOutbox.findFailedMessages(0, afterDelivery, false, 1).getFirst();
 
 
             // Reset mock to no longer fail previously failed messages
@@ -388,11 +388,11 @@ class TransactionalOutboxMockKafkaIT {
         List<FailedMessage> failedMessagesInResend = transactionalOutbox.findFailedMessages(startingFrom, before, true, expectedNumFailedInResend + 1);
         assertThat(failedMessagesInResend).hasSize(expectedNumFailedInResend);
         if (failedMessages.size() > 1) {
-            List<FailedMessage> failedMessagesSublist = transactionalOutbox.findFailedMessages(failedMessages.get(0).getId(), before, false, failedMessages.size());
+            List<FailedMessage> failedMessagesSublist = transactionalOutbox.findFailedMessages(failedMessages.getFirst().getId(), before, false, failedMessages.size());
             assertThat(failedMessagesSublist).hasSize(failedMessages.size() - 1);
         }
         if (failedMessagesInResend.size() > 1) {
-            List<FailedMessage> failedMessagesSublistInResend = transactionalOutbox.findFailedMessages(failedMessages.get(0).getId(), before, true, failedMessagesInResend.size());
+            List<FailedMessage> failedMessagesSublistInResend = transactionalOutbox.findFailedMessages(failedMessages.getFirst().getId(), before, true, failedMessagesInResend.size());
             assertThat(failedMessagesSublistInResend).hasSize(failedMessagesSublistInResend.size() - 1);
         }
     }
@@ -413,6 +413,7 @@ class TransactionalOutboxMockKafkaIT {
         assertThat(deferredMessage.getTraceContext().getTraceId()).isEqualTo(1L);
         assertThat(deferredMessage.getTraceContext().getSpanId()).isEqualTo(2L);
         assertThat(deferredMessage.getTraceContext().getParentSpanId()).isEqualTo(3L);
+        assertThat(deferredMessage.getTraceContext().getSampled()).isTrue();
         if (sendImmediately && (afterCommit != null)) {
             assertThat(deferredMessage.getSentImmediately()).isAfterOrEqualTo(deferredMessage.getCreated());
             assertThat(deferredMessage.getSentImmediately()).isBeforeOrEqualTo(afterCommit);

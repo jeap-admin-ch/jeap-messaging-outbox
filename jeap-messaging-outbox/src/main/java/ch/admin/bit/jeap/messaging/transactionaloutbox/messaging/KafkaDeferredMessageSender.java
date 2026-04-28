@@ -1,9 +1,10 @@
 package ch.admin.bit.jeap.messaging.transactionaloutbox.messaging;
 
 import ch.admin.bit.jeap.messaging.kafka.signature.SignatureService;
-import ch.admin.bit.jeap.messaging.kafka.tracing.TracingKafkaTemplateFactory;
+import ch.admin.bit.jeap.messaging.kafka.tracing.TraceContextScope;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.*;
 import io.micrometer.core.annotation.Timed;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -52,27 +53,28 @@ import static ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.OutboxMetri
  * be accounted for by the timeout on the send future.
  */
 @Slf4j
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 class KafkaDeferredMessageSender implements DeferredMessageSender {
 
     private final KafkaTemplate<byte[], byte[]> kafkaTemplateImmediateSending;
     private final KafkaTemplate<byte[], byte[]> kafkaTemplateScheduledSending;
     private final TransactionalOutboxConfiguration config;
     private final OutboxTracing outboxTracing;
-    private final Optional<TracingKafkaTemplateFactory> tracingKafkaTemplateFactory;
     private final Optional<OutboxMetrics> outboxMetrics; // Collection of outbox metrics depends on a metrics setup being provided.
     private final Optional<SignatureService> signatureService;
+    private final Optional<ObservationRegistry> observationRegistry; // Available when a Micrometer tracing bridge is on the classpath.
     private final String bootstrapServers;
 
     KafkaDeferredMessageSender(ProducerFactory<byte[], byte[]> producerFactory,
                                TransactionalOutboxConfiguration config,
                                OutboxTracing outboxTracing,
-                               Optional<TracingKafkaTemplateFactory> tracingKafkaTemplateFactory,
                                Optional<OutboxMetrics> outboxMetrics,
-                               Optional<SignatureService> signatureService) {
+                               Optional<SignatureService> signatureService,
+                               Optional<ObservationRegistry> observationRegistry) {
         this.outboxTracing = outboxTracing;
-        this.tracingKafkaTemplateFactory = tracingKafkaTemplateFactory;
         this.outboxMetrics = outboxMetrics;
         this.signatureService = signatureService;
+        this.observationRegistry = observationRegistry;
         this.bootstrapServers = (String) producerFactory.getConfigurationProperties().get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG);
         kafkaTemplateImmediateSending = createKafkaTemplate(producerFactory, Map.of(
                 ProducerConfig.MAX_BLOCK_MS_CONFIG, config.getMessageSendImmediatelyMaxBlockTime().toMillis(),
@@ -97,12 +99,17 @@ class KafkaDeferredMessageSender implements DeferredMessageSender {
         var producerFactoryConfig = new HashMap<>(producerFactory.getConfigurationProperties());
         producerFactoryConfig.remove(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG);
         producerFactoryConfig.putAll(additionalConfig);
+        KafkaTemplate<byte[], byte[]> kafkaTemplate = new KafkaTemplate<>(
+                new DefaultKafkaProducerFactory<>(producerFactoryConfig, this::byteArraySerializer, this::byteArraySerializer));
 
-        if (tracingKafkaTemplateFactory.isPresent()) {
-            return tracingKafkaTemplateFactory.get().createKafkaTemplate(producerFactoryConfig, byteArraySerializer(), byteArraySerializer());
-        } else {
-            return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerFactoryConfig, this::byteArraySerializer, this::byteArraySerializer));
-        }
+        observationRegistry.ifPresent(registry -> {
+            // If an observation registry is present we want to enable observation on the template
+            kafkaTemplate.setObservationEnabled(true);
+            // We wire the ObservationRegistry explicitly because the outbox creates the template outside of
+            // Spring's bean-factory pipeline that normally injects it.
+            kafkaTemplate.setObservationRegistry(registry);
+        });
+        return kafkaTemplate;
     }
 
     private Serializer<byte[]> byteArraySerializer() {
@@ -131,27 +138,28 @@ class KafkaDeferredMessageSender implements DeferredMessageSender {
         final long sendFutureTimeoutMillis = sendTimeout.toMillis() + 500;
         DeferredMessageLogArgument deferredMessageLogArgument = DeferredMessageLogArgument.from(deferredMessage);
 
-        outboxTracing.updateCurrentTraceContext(deferredMessage.getTraceContext());
+        // The original trace context was stored with the deferred message. We need to activate it here again
+        // so Spring Kafka's producer-side Observation adds the send span to the original trace.
+        try (TraceContextScope autoclosed = outboxTracing.updateCurrentTraceContext(deferredMessage.getTraceContext())) {
+            ProducerRecord<byte[], byte[]> producerRecord =  new ProducerRecord<>(topic, key, message);
+            injectSignatureHeadersIfNeeded(producerRecord, message, key);
 
+            try {
+                log.debug("Sending message {} to Kafka with a timeout of {} millis.", deferredMessageLogArgument, sendFutureTimeoutMillis);
+                kafkaTemplate.send(producerRecord).get(sendFutureTimeoutMillis, TimeUnit.MILLISECONDS);
 
-        ProducerRecord<byte[], byte[]> producerRecord =  new ProducerRecord<>(topic, key, message);
-        injectSignatureHeadersIfNeeded(producerRecord, message, key);
+                outboxMetrics.ifPresent(metrics ->
+                        metrics.countMessagingSend(bootstrapServers, topic, deferredMessage.getMessageTypeName(), deferredMessage.getMessageTypeVersion()));
 
-        try {
-            log.debug("Sending message {} to Kafka with a timeout of {} millis.", deferredMessageLogArgument, sendFutureTimeoutMillis);
-            kafkaTemplate.send(producerRecord).get(sendFutureTimeoutMillis, TimeUnit.MILLISECONDS);
-
-            outboxMetrics.ifPresent(metrics ->
-                    metrics.countMessagingSend(bootstrapServers, topic, deferredMessage.getMessageTypeName(), deferredMessage.getMessageTypeVersion()));
-
-            log.debug("Successfully sent {}.", deferredMessageLogArgument);
-        } catch (InterruptedException ie) {
-            log.error("Failed sending {}.", deferredMessageLogArgument);
-            Thread.currentThread().interrupt();
-            convertException(deferredMessage, ie);
-        } catch (Exception e) {
-            log.error("Failed sending {}.", deferredMessageLogArgument);
-            convertException(deferredMessage, e);
+                log.debug("Successfully sent {}.", deferredMessageLogArgument);
+            } catch (InterruptedException ie) {
+                log.error("Failed sending {}.", deferredMessageLogArgument);
+                Thread.currentThread().interrupt();
+                convertException(deferredMessage, ie);
+            } catch (Exception e) {
+                log.error("Failed sending {}.", deferredMessageLogArgument);
+                convertException(deferredMessage, e);
+            }
         }
     }
 

@@ -62,13 +62,13 @@ class MessageRelayIT {
     @Test
     void testRelay() {
         DeferredMessageTestUtil.with(deferredMessageRepository).deleteAllMessagesAfter(() -> {
-            when(outboxTracing.retrieveCurrentTraceContext()).thenReturn(OutboxTraceContext.builder().traceId(1L).spanId(2L).parentSpanId(3L).build());
+            when(outboxTracing.retrieveCurrentTraceContext()).thenReturn(OutboxTraceContext.builder().traceId(1L).spanId(2L).parentSpanId(3L).sampled(Boolean.TRUE).build());
             assertThat(deferredMessageRepository.findAll()).isEmpty();
             IntStream.range(1, 9).mapToObj(i -> StringMessage.from("test-message-" + i))
                     .forEach(message -> transactionalOutbox.sendMessageScheduled(message, "test-topic"));
             final ZonedDateTime afterSend = ZonedDateTime.now();
             TestTransaction.end();
-            doAnswer(invocation -> {
+            doAnswer(_ -> {
                 Thread.sleep(500);
                 return null;
             }).when(deferredMessageSenderMock).sendAsScheduled(any(DeferredMessage.class));
@@ -86,6 +86,7 @@ class MessageRelayIT {
                 assertThat(deferredMessage.getTraceContext().getTraceId()).isEqualTo(1L);
                 assertThat(deferredMessage.getTraceContext().getSpanId()).isEqualTo(2L);
                 assertThat(deferredMessage.getTraceContext().getParentSpanId()).isEqualTo(3L);
+                assertThat(deferredMessage.getTraceContext().getSampled()).isTrue();
             });
             TestTransaction.end();
         });
@@ -122,7 +123,7 @@ class MessageRelayIT {
             List<DeferredMessage> allDeferredMessages = deferredMessageRepository.findAll();
             assertThat(allDeferredMessages)
                     .hasSize(1);
-            DeferredMessage sentMessage = allDeferredMessages.get(0);
+            DeferredMessage sentMessage = allDeferredMessages.getFirst();
             assertThat(sentMessage.getMessageIdempotenceId()).isEqualTo(deferredMessage.getMessageIdempotenceId());
             assertThat(sentMessage.getSentScheduled()).isNotNull();
             assertThat(sentMessage.getFailed()).isNull();
@@ -166,9 +167,9 @@ class MessageRelayIT {
             TestTransaction.start();
             List<DeferredMessage> allDeferredMessages = deferredMessageRepository.findAll();
             allDeferredMessages.sort(Comparator.comparing(DeferredMessage::getId));
-            assertThat(allDeferredMessages.get(0).getSentScheduled()).isNull();
-            assertThat(allDeferredMessages.get(0).getFailed()).isNotNull();
-            assertThat(allDeferredMessages.get(0).getFailed()).isAfterOrEqualTo(afterSend);
+            assertThat(allDeferredMessages.getFirst().getSentScheduled()).isNull();
+            assertThat(allDeferredMessages.getFirst().getFailed()).isNotNull();
+            assertThat(allDeferredMessages.getFirst().getFailed()).isAfterOrEqualTo(afterSend);
             assertThat(allDeferredMessages.get(1).getFailed()).isNull();
             assertThat(allDeferredMessages.get(1).getSentScheduled()).isNotNull();
             assertThat(allDeferredMessages.get(1).getSentScheduled()).isAfterOrEqualTo(afterSend);

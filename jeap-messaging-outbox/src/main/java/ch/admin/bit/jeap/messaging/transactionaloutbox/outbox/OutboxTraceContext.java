@@ -31,4 +31,7 @@ public class OutboxTraceContext {
     @Column(name = "trace_id_string")
     private String traceIdString;
 
+    @Column(name = "sampled")
+    private Boolean sampled;
+
 }
