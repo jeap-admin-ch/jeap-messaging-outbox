@@ -140,7 +140,7 @@ class KafkaDeferredMessageSender implements DeferredMessageSender {
 
         // The original trace context was stored with the deferred message. We need to activate it here again
         // so Spring Kafka's producer-side Observation adds the send span to the original trace.
-        try (TraceContextScope autoclosed = outboxTracing.updateCurrentTraceContext(deferredMessage.getTraceContext())) {
+        try (TraceContextScope _ = outboxTracing.updateCurrentTraceContext(deferredMessage.getTraceContext())) {
             ProducerRecord<byte[], byte[]> producerRecord =  new ProducerRecord<>(topic, key, message);
             injectSignatureHeadersIfNeeded(producerRecord, message, key);
 

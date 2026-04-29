@@ -13,6 +13,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Tracing stack migrated from Brave/Zipkin to OpenTelemetry
+- update jeap-messaging from 14.2.0-alpha-springboot4 to 14.3.1-alpha-springboot4
 
 ### Breaking — schema migration required in downstream services
 

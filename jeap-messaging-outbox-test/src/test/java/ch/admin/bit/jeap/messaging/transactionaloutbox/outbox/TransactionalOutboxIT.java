@@ -94,7 +94,7 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
         // does not get wrapped in a tracing manager. We want to verify that the jEAP outbox captures the currently
         // active trace context when sendMessage is called, so we open a scope here.
         Span junitSpan = tracer.nextSpan().name("junit").start();
-        try (Tracer.SpanInScope ignored = tracer.withSpan(junitSpan)) {
+        try (Tracer.SpanInScope _ = tracer.withSpan(junitSpan)) {
             TraceContext expectedTraceContext = traceContextProvider.getTraceContext();
             assertThat(expectedTraceContext).isNotNull();
 
