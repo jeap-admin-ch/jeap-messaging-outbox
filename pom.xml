@@ -27,7 +27,7 @@
 
     <artifactId>jeap-messaging-outbox-parent</artifactId>
     <name>${project.groupId}:${project.artifactId}</name>
-    <version>14.4.0-alpha-springboot4-SNAPSHOT</version>
+    <version>14.5.0-alpha-springboot4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <parent>
@@ -43,7 +43,7 @@
 
     <properties>
         <maven.javadoc.skip>false</maven.javadoc.skip>
-        <jeap-messaging.version>14.4.0-alpha-springboot4</jeap-messaging.version>
+        <jeap-messaging.version>14.5.0-alpha-springboot4</jeap-messaging.version>
     </properties>
 
     <dependencyManagement>
