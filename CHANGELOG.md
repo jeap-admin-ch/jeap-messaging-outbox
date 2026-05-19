@@ -8,8 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [13.9.0] - 2026-05-19
 
 ### Changed
-
 - Update parent from 6.0.4 to 6.0.5
+- added second argument to TraceBridge.getSpan to allow to pass in the spanName and have more meaningful traces
+- update jeap-messaging from 13.8.0 to 13.9.0
 
 ## [13.8.0] - 2026-05-06
 
