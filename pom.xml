@@ -43,7 +43,7 @@
 
     <properties>
         <maven.javadoc.skip>false</maven.javadoc.skip>
-        <jeap-messaging.version>14.8.0-alpha-springboot4</jeap-messaging.version>
+        <jeap-messaging.version>14.9.0-alpha-springboot4</jeap-messaging.version>
     </properties>
 
     <dependencyManagement>
