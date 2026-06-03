@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 > - Spring Boot 3 maintenance (bug fixes, patches, and regular updates) continues on branch `release/springboot3`.
 
+## [15.2.1] - 2026-06-03
+### Changed
+- update jeap-messaging from 15.2.0 to 15.2.1
+- Exclude squareup wire dependency from glue schema registry serde: not used, fixes vulnerability scan (CVE-2026-45799)
+
 ## [15.2.0] - 2026-06-01
 
 ### Changed
