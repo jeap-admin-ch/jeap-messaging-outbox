@@ -10,8 +10,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [15.3.0] - 2026-06-03
 
 ### Changed
-
 - Update parent from 8.0.1 to 8.1.0
+- update jeap-spring-boot-roles-anywhere-starter from 3.2.0 to 3.3.0
+- update aws-msk-iam-auth from 2.3.5 to 2.3.7
+- update avro-serializer from 8.2.0 to 8.2.1
+- update jeap-crypto from 9.1.0 to 9.2.0
+- update jeap-messaging from 15.2.1 to 15.3.0
+- update jeap-spring-boot-vault-starter from 23.1.0 to 23.2.0
+- update maven-plugin-testing-harness from 3.5.0 to 3.5.1
+- update maven.api from 3.9.14 to 3.9.16
 
 ## [15.2.1] - 2026-06-03
 ### Changed
