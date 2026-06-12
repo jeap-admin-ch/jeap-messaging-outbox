@@ -10,8 +10,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [15.6.0] - 2026-06-12
 
 ### Changed
-
 - Update parent from 8.1.0 to 8.2.0
+- Update logstash to 9.0 (managed from internal parent)
+- update jeap-crypto from 9.4.0 to 9.5.0
+- Remove logstash version because it is managed by the internal parent now
+- update jeap-messaging from 15.5.0 to 15.6.0
+- update jeap-spring-boot-roles-anywhere-starter from 3.3.0 to 3.4.0
+- update jeap-spring-boot-vault-starter from 23.4.0 to 23.5.0
 
 ## [15.5.0] - 2026-06-11
 ### Changed
