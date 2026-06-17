@@ -5,7 +5,7 @@ import lombok.Getter;
 @Getter
 public class DeferredMessageSendException extends RuntimeException {
 
-    private SendFailureReason reason;
+    private final SendFailureReason reason;
 
     private DeferredMessageSendException(String message, Exception e, SendFailureReason reason) {
         super(message, e);

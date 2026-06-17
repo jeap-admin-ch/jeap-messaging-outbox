@@ -22,24 +22,26 @@ public class MessageRelay {
         log.debug("Starting to relay deferred messages.");
         final ZonedDateTime stopRelayingAt = ZonedDateTime.now().plus(config.getContinuousRelayTimeout());
         log.debug("Will stop relaying after {}.", stopRelayingAt);
-        while (ZonedDateTime.now().isBefore(stopRelayingAt)) {
 
+        boolean continueRelaying = true;
+        while (continueRelaying && ZonedDateTime.now().isBefore(stopRelayingAt)) {
             log.debug("Fetching at most {} deferred messages ready to be sent.", config.getMessageRelayBatchSize());
             List<DeferredMessage> messages = deferredMessageRepository.findMessagesReadyToBeSent(config.getMessageRelayBatchSize());
+
             if (messages.isEmpty()) {
                 log.debug("There are no deferred messages ready to be sent.");
-                break;
+                continueRelaying = false;
+            } else {
+                log.debug("Fetched a batch of {} deferred messages to send.", messages.size());
+                try {
+                    sendMessages(messages);
+                } catch (Exception e) {
+                    log.error("Unable to send the complete batch of fetched deferred messages.", e);
+                    continueRelaying = false;
+                }
             }
-
-            log.debug("Fetched a batch of {} deferred messages to send.", messages.size());
-            try {
-                sendMessages(messages);
-            } catch (Exception e) {
-                log.error("Unable to send the complete batch of fetched deferred messages.", e);
-                break;
-            }
-
         }
+
         log.debug("Ending relaying of deferred messages.");
     }
 
