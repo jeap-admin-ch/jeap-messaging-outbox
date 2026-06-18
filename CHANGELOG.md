@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [15.10.0] - 2026-06-18
+### Changed
+- update jeap-messaging from 15.9.0 to 15.10.0
+- refactor the upload artifact in the avro maven plugin to ignore errors if the artifact is already present in the repository
+
 ## [15.9.0] - 2026-06-18
 
 ### Changed
