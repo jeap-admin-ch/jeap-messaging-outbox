@@ -13,7 +13,7 @@ message types, contracts, signing, tracing) and is delivered via Spring Boot aut
 
 ## Repository layout
 
-```
+```text
 pom.xml                          # Parent POM (packaging=pom); declares the modules below
 jeap-messaging-outbox/           # The library: outbox API, relay, scheduling, JPA, metrics, auto-config
 jeap-messaging-outbox-test/      # Internal integration tests (embedded Kafka, H2, Flyway); not published API
@@ -65,6 +65,9 @@ Key packages under `ch.admin.bit.jeap.messaging.transactionaloutbox`:
 When changing public behaviour, update the matching focused file under [docs/](docs/) (one topic per
 file) and the documentation index in the README. Ground every documented fact in the source; the
 Confluence page may be outdated (e.g. property defaults).
+
+Validate that files under `docs/*.md` are valid Markdown compatible with a Docusaurus site. Also
+validate that Mermaid diagrams in the Markdown files use correct Mermaid syntax.
 
 ## Versioning
 

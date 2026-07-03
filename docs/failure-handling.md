@@ -19,11 +19,11 @@ If a send fails because of the message itself — not because Kafka is down — 
 `failed` and ignored by the relay, so it cannot block delivery of all other messages. The failure
 reasons (`SendFailureReason`) that mark a message as failed are:
 
-| Reason                  | Cause                                                          |
-|-------------------------|---------------------------------------------------------------|
-| `INVALID_TOPIC`         | The target topic does not exist                               |
-| `UNAUTHORIZED_ON_TOPIC` | No authorization on the topic                                 |
-| `MESSAGE_TOO_LARGE`     | The message exceeds the topic / cluster size limit            |
+| Reason                  | Cause                                              |
+|-------------------------|----------------------------------------------------|
+| `INVALID_TOPIC`         | The target topic does not exist                    |
+| `UNAUTHORIZED_ON_TOPIC` | No authorization on the topic                      |
+| `MESSAGE_TOO_LARGE`     | The message exceeds the topic / cluster size limit |
 
 Any other (general) error is treated as transient and retried; it does not mark the message as failed.
 
@@ -35,13 +35,13 @@ be monitored so DevOps can react.
 
 `TransactionalOutbox` exposes methods to query and re-enable failed messages:
 
-| Method                                                                   | Purpose                                                            |
-|--------------------------------------------------------------------------|-------------------------------------------------------------------|
-| `countFailedMessages(boolean resend)`                                    | Count failed messages, optionally restricted to those marked for resend |
-| `countFailedMessages(ZonedDateTime from, ZonedDateTime before, boolean resend)` | Count failed messages within a time interval               |
-| `findFailedMessages(ZonedDateTime from, ZonedDateTime before, boolean resend, int max)` | Find failed messages in a time interval (ordered by id)    |
-| `findFailedMessages(long afterId, ZonedDateTime before, boolean resend, int max)` | Find failed messages after a given id (for paging)        |
-| `resendMessageScheduled(long id)`                                        | Make a failed message available to the relay again (initiate a resend) |
+| Method                                                                                  | Purpose                                                                 |
+|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `countFailedMessages(boolean resend)`                                                   | Count failed messages, optionally restricted to those marked for resend |
+| `countFailedMessages(ZonedDateTime from, ZonedDateTime before, boolean resend)`         | Count failed messages within a time interval                            |
+| `findFailedMessages(ZonedDateTime from, ZonedDateTime before, boolean resend, int max)` | Find failed messages in a time interval (ordered by id)                 |
+| `findFailedMessages(long afterId, ZonedDateTime before, boolean resend, int max)`       | Find failed messages after a given id (for paging)                      |
+| `resendMessageScheduled(long id)`                                                       | Make a failed message available to the relay again (initiate a resend)  |
 
 A resend only succeeds once the root cause has been fixed (for example a missing topic authorization
 has been granted). Re-enabling a message via `resendMessageScheduled` clears its failed state so the

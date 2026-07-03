@@ -4,18 +4,48 @@ The transactional outbox decouples *queuing* a message from *delivering* it. Que
 the caller's database transaction; delivery happens afterwards, either immediately after commit or by
 a background relay.
 
+## Pattern overview
+
+```mermaid
+flowchart LR
+    OS["Order Service"]
+
+    subgraph DB["Database"]
+        subgraph TX["Transaction ①"]
+            ORDER["ORDER table"]
+            OUTBOX["OUTBOX table"]
+        end
+    end
+
+    RELAY["Message Relay"]
+    BROKER["Message Broker"]
+
+    OS -->|"INSERT, UPDATE, DELETE"| ORDER
+    OS -->|"INSERT"| OUTBOX
+    RELAY -->|"② Read OUTBOX table"| OUTBOX
+    RELAY -->|"③ Publish"| BROKER
+
+    style OS fill:#FFFFFF,stroke:#000000,stroke-width:1.5px
+    style DB fill:#FFFFFF,stroke:#000000,stroke-width:1.5px
+    style TX fill:#FFFFFF,stroke:#000000,stroke-width:1px,stroke-dasharray:4 4
+    style ORDER fill:#FFFFFF,stroke:#000000,stroke-width:1.5px
+    style OUTBOX fill:#FFFFFF,stroke:#000000,stroke-width:1.5px
+    style RELAY fill:#FFFFFF,stroke:#000000,stroke-width:1.5px
+    style BROKER fill:#FFFFFF,stroke:#000000,stroke-width:1.5px
+```
+
 ## Building blocks
 
-| Component                       | Responsibility                                                                                  |
-|---------------------------------|-------------------------------------------------------------------------------------------------|
-| `TransactionalOutbox`           | Public API. Validates the producer contract, serializes the message, persists a `DeferredMessage` |
+| Component                       | Responsibility                                                                                            |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `TransactionalOutbox`           | Public API. Validates the producer contract, serializes the message, persists a `DeferredMessage`         |
 | `DeferredMessage`               | JPA entity stored in the `deferred_message` table (serialized message bytes, topic, state, trace context) |
-| `AfterCommitMessageSender`      | Sends immediately-flagged messages once the transaction commits (`TxSyncAfterCommitMessageSender`) |
-| `MessageRelay`                  | Polls the table for messages ready to be sent and relays them in batches                        |
-| `MessageRelayScheduler`         | Triggers `MessageRelay.relay()` on a fixed delay, guarded by a ShedLock lock                    |
-| `KafkaDeferredMessageSender`    | Sends the stored bytes to Kafka using dedicated byte-array `KafkaTemplate`s                     |
-| `OutboxHouseKeeping`            | Deletes sent/unsent messages past their retention                                               |
-| `MicrometerOutboxMetrics`       | Records gauges, counters and timers (when a `MeterRegistry` is present)                          |
+| `AfterCommitMessageSender`      | Sends immediately-flagged messages once the transaction commits (`TxSyncAfterCommitMessageSender`)        |
+| `MessageRelay`                  | Polls the table for messages ready to be sent and relays them in batches                                  |
+| `MessageRelayScheduler`         | Triggers `MessageRelay.relay()` on a fixed delay, guarded by a ShedLock lock                              |
+| `KafkaDeferredMessageSender`    | Sends the stored bytes to Kafka using dedicated byte-array `KafkaTemplate`s                               |
+| `OutboxHouseKeeping`            | Deletes sent/unsent messages past their retention                                                         |
+| `MicrometerOutboxMetrics`       | Records gauges, counters and timers (when a `MeterRegistry` is present)                                   |
 
 Messages are stored as already-serialized Avro Kafka bytes. This means the relay can deliver a
 message even on an instance that does not have the message type's Java binding on its classpath.

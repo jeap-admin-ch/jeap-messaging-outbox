@@ -61,22 +61,22 @@ CREATE TABLE shedlock
 
 ## `deferred_message` columns
 
-| Column                   | Meaning                                                                                    |
-|--------------------------|--------------------------------------------------------------------------------------------|
-| `message`                | The serialized Avro Kafka message bytes                                                     |
-| `key`                    | The serialized Kafka message key (nullable)                                                 |
-| `cluster_name`           | Target Kafka cluster; unknown clusters fall back to the default producer cluster           |
-| `topic`                  | Destination Kafka topic                                                                     |
-| `message_id` / `message_idempotence_id` | The message identity, used for logging and traceability                     |
-| `message_type_name` / `message_type_version` | The message type and its generated version                            |
-| `created`                | When the message was put into the outbox                                                   |
-| `send_immediately`       | Whether immediate (`true`) or scheduled (`false`) delivery was requested                    |
-| `schedule_after`         | Earliest time the relay should pick the message up (set for immediate messages before commit) |
-| `sent_immediately`       | Timestamp of a successful immediate send (null until sent)                                  |
-| `sent_scheduled`         | Timestamp of a successful relay send (null until sent)                                      |
-| `failed` / `fail_reason` | When and why the message was marked failed (see [Failure handling](failure-handling.md))   |
-| `resend`                 | Whether a failed message was re-enabled for the relay                                       |
-| `trace_*` / `sampled`    | The captured trace context, restored when the message is relayed so the send span joins the original trace |
+| Column                                       | Meaning                                                                                                    |
+|----------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `message`                                    | The serialized Avro Kafka message bytes                                                                    |
+| `key`                                        | The serialized Kafka message key (nullable)                                                                |
+| `cluster_name`                               | Target Kafka cluster; unknown clusters fall back to the default producer cluster                           |
+| `topic`                                      | Destination Kafka topic                                                                                    |
+| `message_id` / `message_idempotence_id`      | The message identity, used for logging and traceability                                                    |
+| `message_type_name` / `message_type_version` | The message type and its generated version                                                                 |
+| `created`                                    | When the message was put into the outbox                                                                   |
+| `send_immediately`                           | Whether immediate (`true`) or scheduled (`false`) delivery was requested                                   |
+| `schedule_after`                             | Earliest time the relay should pick the message up (set for immediate messages before commit)              |
+| `sent_immediately`                           | Timestamp of a successful immediate send (null until sent)                                                 |
+| `sent_scheduled`                             | Timestamp of a successful relay send (null until sent)                                                     |
+| `failed` / `fail_reason`                     | When and why the message was marked failed (see [Failure handling](failure-handling.md))                   |
+| `resend`                                     | Whether a failed message was re-enabled for the relay                                                      |
+| `trace_*` / `sampled`                        | The captured trace context, restored when the message is relayed so the send span joins the original trace |
 
 A message counts as *ready to be sent* once it is past its `schedule_after`, not yet sent (`sent_immediately`
 and `sent_scheduled` both null) and not failed.

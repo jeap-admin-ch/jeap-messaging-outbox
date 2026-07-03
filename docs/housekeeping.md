@@ -20,13 +20,13 @@ and minimizing lock duration). The maximum number of messages deleted per kind i
 
 ## Retention configuration
 
-| Property                            | Default | Applies to                                          |
-|-------------------------------------|---------|-----------------------------------------------------|
-| `sent-message-retention-duration`   | `P2D`   | Successfully sent messages                           |
-| `unsent-message-retention-duration` | `P30D`  | Messages that were not (yet) successfully sent       |
-| `house-keeping-schedule`            | `0 0 3 * * *` | Cron expression for when the cleanup runs      |
-| `house-keeping-page-size`           | `500`   | Page size of the delete queries                      |
-| `house-keeping-max-pages`           | `100000`| Max pages per run (caps how much one run can delete) |
+| Property                            | Default       | Applies to                                           |
+|-------------------------------------|---------------|------------------------------------------------------|
+| `sent-message-retention-duration`   | `P2D`         | Successfully sent messages                           |
+| `unsent-message-retention-duration` | `P30D`        | Messages that were not (yet) successfully sent       |
+| `house-keeping-schedule`            | `0 0 3 * * *` | Cron expression for when the cleanup runs            |
+| `house-keeping-page-size`           | `500`         | Page size of the delete queries                      |
+| `house-keeping-max-pages`           | `100000`      | Max pages per run (caps how much one run can delete) |
 
 Note: a longer `unsent-message-retention-duration` keeps [failed](failure-handling.md) messages around
 long enough to be investigated and resent before they are purged.
