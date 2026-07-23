@@ -8,8 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [13.12.0] - 2026-07-23
 
 ### Changed
-
 - Update parent from 6.0.7 to 6.0.9
+- update jeap-messaging from 13.11.0 to 13.12.0
+- `silentIgnoreWithoutContract` again only suppresses the no-contract log statement: contract enforcement now always
+  runs, i.e. messages without a contract are again filtered out on consumption (unless `consumeWithoutContractAllowed`
+  is set) and rejected on publication (unless `publishWithoutContractAllowed` is set). The integration test exemption
+  from consumer contract checks is now handled by a dedicated internal flag.
+- New switch `silentIgnoreWithoutContract` on the `jeap.messaging.contract` metric
 
 ## [13.11.0] - 2026-06-15
 
