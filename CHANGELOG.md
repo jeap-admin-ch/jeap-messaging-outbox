@@ -9,6 +9,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - update jeap-messaging from 18.1.0 to 18.2.0
 - Migrate jEAP-owned JSON databinding to Jackson 3 and remove the unused AWS SDK v1 Glue dependency.
+- update jeap-messaging from 18.2.0 to 18.2.1
+- update jeap-crypto from 10.19.0 to 10.19.2
+- Exclude the AWS SDK Apache 5 HTTP client when using the URL connection client.
 
 ## [17.18.0] - 2026-08-22
 
