@@ -27,7 +27,7 @@
 
     <artifactId>jeap-messaging-outbox-parent</artifactId>
     <name>${project.groupId}:${project.artifactId}</name>
-    <version>17.21.2-SNAPSHOT</version>
+    <version>17.21.3-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <parent>
@@ -43,7 +43,7 @@
 
     <properties>
         <maven.javadoc.skip>false</maven.javadoc.skip>
-        <jeap-messaging.version>18.4.2</jeap-messaging.version>
+        <jeap-messaging.version>18.4.3</jeap-messaging.version>
     </properties>
 
     <dependencyManagement>
