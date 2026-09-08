@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [17.27.1] - 2026-09-08
+### Changed
+- update jeap-messaging from 18.10.0 to 18.10.1
+- Exempt the framework-owned `ModulithPublicationProcessingFailedEvent` from producer contract validation.
+- Clarify that source microservices still require retry/discard consumer contracts, checked by the enabled starter
+  at startup.
+
 ## [17.27.0] - 2026-09-05
 
 ### Changed
