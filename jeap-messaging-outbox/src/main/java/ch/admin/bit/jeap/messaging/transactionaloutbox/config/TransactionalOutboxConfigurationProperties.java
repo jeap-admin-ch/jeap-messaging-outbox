@@ -13,6 +13,9 @@ import java.time.Duration;
 @SuppressWarnings("java:S1104")
 public class TransactionalOutboxConfigurationProperties implements TransactionalOutboxConfiguration {
 
+    /** Enable durable per-message headers. Requires the optional deferred_message_header table. */
+    public boolean headersEnabled = false;
+
     public Duration pollDelay = Duration.ofSeconds(2);
 
     public Duration continuousRelayTimeout = Duration.ofMinutes(5);
@@ -42,4 +45,3 @@ public class TransactionalOutboxConfigurationProperties implements Transactional
     public Duration metricsUpdateInterval = Duration.ofSeconds(10);
 
 }
-

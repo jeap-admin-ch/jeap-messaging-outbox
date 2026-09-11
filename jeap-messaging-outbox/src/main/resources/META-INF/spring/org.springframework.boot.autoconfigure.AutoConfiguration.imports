@@ -5,3 +5,4 @@ ch.admin.bit.jeap.messaging.transactionaloutbox.messaging.OutboxMessagingConfig
 ch.admin.bit.jeap.messaging.transactionaloutbox.scheduling.OutboxSchedulingConfig
 ch.admin.bit.jeap.messaging.transactionaloutbox.metrics.OutboxMetricsConfig
 ch.admin.bit.jeap.messaging.transactionaloutbox.config.TransactionalOutboxConfigurationProperties
+ch.admin.bit.jeap.messaging.transactionaloutbox.headers.OutboxMessageHeadersConfiguration

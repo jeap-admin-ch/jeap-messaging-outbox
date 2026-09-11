@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 
 import java.util.List;
 import java.util.Optional;
@@ -72,5 +73,37 @@ class TransactionalOutboxTest {
 
         verify(callback).onSend(testMessage, "topic");
         verifyNoMoreInteractions(callback);
+    }
+
+    @Test
+    void headersAreRejectedBeforeEnqueueWhenSupportIsDisabled() {
+        var headers = new RecordHeaders().add("jeap_eh_target_service", new byte[]{1});
+        assertThatThrownBy(() -> transactionalOutbox.sendMessage(StringMessage.from("test"), null, "topic", headers))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("headers-enabled=true");
+        assertThatThrownBy(() -> transactionalOutbox.sendMessageScheduled(StringMessage.from("test"), null, "topic", headers))
+                .isInstanceOf(IllegalStateException.class);
+        verifyNoInteractions(deferredMessageRepository, serializer, afterCommitMessageSender);
+    }
+
+    @Test
+    void rejectsFrameworkManagedHeaders() {
+        for (String name : List.of("jeap-sign", "jeap-cert", "jeap-sign-key", "traceparent", "tracestate", "b3", "X-B3-TraceId")) {
+            var headers = new RecordHeaders().add(name, new byte[]{1});
+            assertThatThrownBy(() -> transactionalOutbox.sendMessage(StringMessage.from("test"), null, "topic", headers))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("managed by the framework");
+        }
+        verifyNoInteractions(deferredMessageRepository, serializer, afterCommitMessageSender);
+    }
+
+    @Test
+    void emptyHeadersWorkWithoutOptIn() {
+        var message = StringMessage.from("test");
+        doReturn(new byte[0]).when(serializer).serializeMessage(any(), any());
+        doReturn(deferredMessage).when(deferredMessageRepository).save(any());
+
+        transactionalOutbox.sendMessage(message, null, "topic", new RecordHeaders());
+
+        verify(deferredMessageRepository).save(any());
+        verify(afterCommitMessageSender).sendImmediatelyAfterTransactionCommit(deferredMessage);
     }
 }

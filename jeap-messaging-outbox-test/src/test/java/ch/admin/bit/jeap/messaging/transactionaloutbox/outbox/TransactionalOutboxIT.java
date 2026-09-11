@@ -9,6 +9,9 @@ import ch.admin.bit.jeap.messaging.kafka.tracing.TraceContext;
 import ch.admin.bit.jeap.messaging.kafka.tracing.TraceContextProvider;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.test.TestEvent;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.test.TestMessageKey;
+import ch.admin.bit.jeap.messaging.transactionaloutbox.headers.OutboxMessageHeadersRepository;
+import org.springframework.context.ApplicationContext;
+import org.springframework.jdbc.core.JdbcTemplate;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +48,7 @@ import static org.mockito.Mockito.verify;
 @AutoConfigureTracing
 @ExtendWith(MockitoExtension.class)
 @SpringBootTest(properties = {
+        "spring.jpa.hibernate.ddl-auto=validate",
         "jeap.messaging.kafka.exposeMessageKeyToConsumer=true",
         "management.tracing.sampling.probability=1.0"
 })
@@ -78,6 +82,20 @@ class TransactionalOutboxIT extends KafkaIntegrationTestBase {
     private TraceContextProvider traceContextProvider;
     @Autowired
     DeferredMessageTestUtil deferredMessageTestUtil;
+
+    @Autowired
+    private ApplicationContext applicationContext;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    @Transactional
+    void legacySchemaDoesNotRequireHeaderStorage() {
+        assertThat(applicationContext.getBeansOfType(OutboxMessageHeadersRepository.class)).isEmpty();
+        Integer headerTables = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM information_schema.tables WHERE table_name = 'DEFERRED_MESSAGE_HEADER'", Integer.class);
+        assertThat(headerTables).isZero();
+    }
 
 
     @AfterEach

@@ -81,6 +81,37 @@ CREATE TABLE shedlock
 A message counts as *ready to be sent* once it is past its `schedule_after`, not yet sent (`sent_immediately`
 and `sent_scheduled` both null) and not failed.
 
+## Optional header storage
+
+Applications that enable `jeap.messaging.transactional-outbox.headers-enabled=true` must create this
+additional table in the same database and connection-default schema as `deferred_message`:
+
+```sql
+CREATE TABLE deferred_message_header
+(
+    deferred_message_id BIGINT NOT NULL,
+    header_index INTEGER NOT NULL,
+    header_name VARCHAR(255) NOT NULL,
+    header_value BYTEA,
+    PRIMARY KEY (deferred_message_id, header_index),
+    FOREIGN KEY (deferred_message_id) REFERENCES deferred_message (id) ON DELETE CASCADE
+);
+```
+
+There are no new JPA entities or columns on `deferred_message`. Applications that leave header support
+disabled can upgrade without this migration. JDBC header writes participate in the outbox's existing
+JPA transaction; JPA is flushed before writing headers to satisfy the foreign key. The JDBC template
+must use the same transactional data source as the outbox.
+
+Headers retain their order, duplicate names, binary values and null values. The foreign key deletes
+headers when housekeeping or explicit deletion removes their parent message. Sent messages retain
+headers until that deletion so resends preserve them too.
+
+For a rolling upgrade, first deploy the schema and header-capable code to **all** enqueue/relay instances
+while leaving the feature disabled. Enable it consistently and restart those instances before sending
+header-bearing messages. Old or disabled relay instances cannot restore headers. Do not disable the
+feature or roll back to an older relay while header-bearing messages remain eligible for delivery/resend.
+
 ## Related
 
 - [Getting started](getting-started.md)

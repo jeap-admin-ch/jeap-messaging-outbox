@@ -5,14 +5,22 @@ import ch.admin.bit.jeap.messaging.kafka.contract.ContractsValidator;
 import ch.admin.bit.jeap.messaging.kafka.interceptor.Callbacks;
 import ch.admin.bit.jeap.messaging.kafka.interceptor.JeapKafkaMessageCallback;
 import ch.admin.bit.jeap.messaging.model.Message;
+import ch.admin.bit.jeap.messaging.transactionaloutbox.headers.OutboxMessageHeadersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.Assert;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
@@ -55,6 +63,18 @@ public class TransactionalOutbox {
     private final Optional<OutboxMetrics> outboxMetrics;  // Collection of outbox metrics depends on a metrics setup being provided.
     private final OutboxTracing outboxTracing;
     private final List<JeapKafkaMessageCallback> callbacks;
+
+    private static final Set<String> RESERVED_HEADERS = Set.of(
+            "jeap-sign", "jeap-sign-key", "jeap-cert", "traceparent", "tracestate", "b3",
+            "exemptfromproducercontractcheckmarker");
+
+    // Setter injection preserves the existing constructor for callers creating the outbox themselves.
+    private OutboxMessageHeadersRepository messageHeadersRepository;
+
+    @Autowired(required = false)
+    public void setMessageHeadersRepository(OutboxMessageHeadersRepository messageHeadersRepository) {
+        this.messageHeadersRepository = messageHeadersRepository;
+    }
 
     /**
      * Send the given message to the given topic. Sending will happen immediately after the surrounding transaction got committed.
@@ -106,6 +126,50 @@ public class TransactionalOutbox {
     @Transactional(propagation = Propagation.MANDATORY)
     public void sendMessageScheduled(Message message, Object key, String topic) {
         sendMessage(message, key, topic, false);
+    }
+
+    /**
+     * Send after commit with durable headers. Requires header storage when headers are nonempty.
+     * Header order, duplicate names and null values are preserved; values are defensively copied.
+     * Signing and tracing headers are managed by the framework and cannot be supplied here.
+     *
+     * @param message message to publish
+     * @param key optional message key
+     * @param topic destination topic
+     * @param headers additional Kafka headers (use an empty collection for none)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void sendMessage(Message message, Object key, String topic, Iterable<Header> headers) {
+        sendMessage(message, key, topic, true, copyHeaders(headers));
+    }
+
+    /**
+     * Send via the scheduled relay with durable headers, with the same semantics as the immediate overload.
+     *
+     * @param message message to publish
+     * @param key optional message key
+     * @param topic destination topic
+     * @param headers additional Kafka headers
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void sendMessageScheduled(Message message, Object key, String topic, Iterable<Header> headers) {
+        sendMessage(message, key, topic, false, copyHeaders(headers));
+    }
+
+    private static List<Header> copyHeaders(Iterable<Header> headers) {
+        Assert.notNull(headers, "headers must not be null");
+        List<Header> copy = new ArrayList<>();
+        for (Header header : headers) {
+            Assert.notNull(header, "header must not be null");
+            Assert.notNull(header.key(), "header name must not be null");
+            Assert.isTrue(header.key().length() <= 255, "header name must not exceed 255 characters");
+            String name = header.key().toLowerCase(Locale.ROOT);
+            Assert.isTrue(!RESERVED_HEADERS.contains(name) && !name.startsWith("x-b3-"),
+                    "Signing, tracing and contract-exemption headers are managed by the framework");
+            byte[] value = header.value();
+            copy.add(new RecordHeader(header.key(), value == null ? null : value.clone()));
+        }
+        return List.copyOf(copy);
     }
 
     /**
@@ -167,6 +231,14 @@ public class TransactionalOutbox {
     }
 
     private void sendMessage(Message message, Object key, String topic, boolean sendImmediately) {
+        sendMessage(message, key, topic, sendImmediately, List.of());
+    }
+
+    private void sendMessage(Message message, Object key, String topic, boolean sendImmediately, List<Header> headers) {
+        if (!headers.isEmpty() && messageHeadersRepository == null) {
+            throw new IllegalStateException("Outbox headers require jeap.messaging.transactional-outbox.headers-enabled=true "
+                    + "and the deferred_message_header table");
+        }
         ensurePublisherContract(message, topic);
         byte[] serializedMessage = serializer.serializeMessage(message, topic);
         byte[] serializedKey = Optional.ofNullable(key)
@@ -185,6 +257,9 @@ public class TransactionalOutbox {
                 .traceContext(outboxTracing.retrieveCurrentTraceContext())
                 .build();
         DeferredMessage persistedDeferredMessage = deferredMessageRepository.save(newDeferredMessage);
+        if (!headers.isEmpty()) {
+            messageHeadersRepository.saveHeaders(persistedDeferredMessage.getId(), headers);
+        }
         log.debug("Persisted {}.", DeferredMessageLogArgument.from(persistedDeferredMessage));
         if (sendImmediately) {
             afterCommitMessageSender.sendImmediatelyAfterTransactionCommit(persistedDeferredMessage);

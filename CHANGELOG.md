@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.1.0] - 2026-09-11
+
+### Added
+- Optional durable message headers for immediate and scheduled sends. Header storage is disabled by default;
+  existing APIs and the `deferred_message` schema remain unchanged.
+
 ## [18.0.0] - 2026-09-11
 ### Changed
 - update jeap-messaging from 18.14.0 to 19.0.0

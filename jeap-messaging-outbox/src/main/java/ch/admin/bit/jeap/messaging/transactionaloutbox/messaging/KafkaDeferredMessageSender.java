@@ -3,6 +3,7 @@ package ch.admin.bit.jeap.messaging.transactionaloutbox.messaging;
 import ch.admin.bit.jeap.messaging.kafka.signature.SignatureService;
 import ch.admin.bit.jeap.messaging.kafka.tracing.TraceContextScope;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.*;
+import ch.admin.bit.jeap.messaging.transactionaloutbox.headers.OutboxMessageHeadersRepository;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.springframework.kafka.KafkaException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -64,6 +66,13 @@ class KafkaDeferredMessageSender implements DeferredMessageSender {
     private final Optional<SignatureService> signatureService;
     private final Optional<ObservationRegistry> observationRegistry; // Available when a Micrometer tracing bridge is on the classpath.
     private final String bootstrapServers;
+
+    private OutboxMessageHeadersRepository messageHeadersRepository;
+
+    @Autowired(required = false)
+    void setMessageHeadersRepository(OutboxMessageHeadersRepository messageHeadersRepository) {
+        this.messageHeadersRepository = messageHeadersRepository;
+    }
 
     KafkaDeferredMessageSender(ProducerFactory<byte[], byte[]> producerFactory,
                                TransactionalOutboxConfiguration config,
@@ -142,9 +151,12 @@ class KafkaDeferredMessageSender implements DeferredMessageSender {
         // so Spring Kafka's producer-side Observation adds the send span to the original trace.
         try (TraceContextScope _ = outboxTracing.updateCurrentTraceContext(deferredMessage.getTraceContext())) {
             ProducerRecord<byte[], byte[]> producerRecord =  new ProducerRecord<>(topic, key, message);
-            injectSignatureHeadersIfNeeded(producerRecord, message, key);
 
             try {
+                if (messageHeadersRepository != null) {
+                    messageHeadersRepository.findHeaders(deferredMessage.getId()).forEach(producerRecord.headers()::add);
+                }
+                injectSignatureHeadersIfNeeded(producerRecord, message, key);
                 log.debug("Sending message {} to Kafka with a timeout of {} millis.", deferredMessageLogArgument, sendFutureTimeoutMillis);
                 kafkaTemplate.send(producerRecord).get(sendFutureTimeoutMillis, TimeUnit.MILLISECONDS);
 

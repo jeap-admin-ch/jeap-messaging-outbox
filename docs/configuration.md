@@ -13,6 +13,17 @@ jeap:
       sent-message-retention-duration: P2D
 ```
 
+## Optional message headers
+
+| Property | Default | Type | Description |
+|---|---|---|---|
+| `headers-enabled` | `false` | boolean | Enable durable Kafka headers using the optional `deferred_message_header` table. |
+
+When disabled, the outbox does not query or require the header table, and existing send methods keep
+their behavior. Nonempty headers passed to the new send overloads require a configured header repository;
+otherwise enqueue fails before persisting the message. See [header storage](database.md#optional-header-storage)
+and [sending headers](sending-messages.md#optional-kafka-headers).
+
 ## Delivery (immediate)
 
 | Property                                  | Default  | Type     | Description                                                                                                                                                |
