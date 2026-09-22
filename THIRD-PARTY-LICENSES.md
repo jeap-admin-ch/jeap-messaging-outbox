@@ -166,7 +166,7 @@ Apache License Version 2.0
  * Objenesis - [org.objenesis:objenesis](http://objenesis.org/objenesis)
  * org.opentest4j:opentest4j - [org.opentest4j:opentest4j](https://github.com/ota4j-team/opentest4j)
  * Reflections - [org.reflections:reflections](http://github.com/ronmamo/reflections)
- * Scala Library - [org.scala-lang:scala-library](https://www.scala-lang.org/)
+ * scala-library-bootstrapped - [org.scala-lang:scala-library](https://scala-lang.org/)
  * Scala Reflect - [org.scala-lang:scala-reflect](https://www.scala-lang.org/)
  * JSONassert - [org.skyscreamer:jsonassert](https://github.com/skyscreamer/JSONassert)
  * Spring AOP - [org.springframework:spring-aop](https://github.com/spring-projects/spring-framework)
