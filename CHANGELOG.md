@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.10.0] - 2026-09-26
+
+### Changed
+
+- Update parent from 11.0.0 to 11.1.0
+
 ## [18.9.0] - 2026-09-24
 ### Changed
 - update jeap-messaging from 19.7.0 to 19.8.0
