@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.16.1] - 2026-10-08
+### Changed
+- update jeap-messaging from 19.15.0 to 19.15.1
+- Clean up the contract annotation processors and the schema extraction without changing their behaviour: no longer catch `Error`, and reduce the complexity of the schema classfile and source readers.
+
 ## [18.16.0] - 2026-10-07
 ### Changed
 - update jeap-messaging from 19.14.0 to 19.15.0
