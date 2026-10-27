@@ -36,7 +36,9 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD;
 
 @Transactional
-@DataJpaTest
+// OutboxConfig's component scan also picks up the scheduling test config from the testsupport package, so the
+// relay has to be switched off explicitly. Otherwise it relays scheduled messages while the tests assert they are unsent.
+@DataJpaTest(properties = "jeap.messaging.transactional-outbox.scheduled-relay-enabled=false")
 @ContextConfiguration(classes = OutboxMockKafkaNoSchedulingTestConfig.class)
 @DirtiesContext(classMode = AFTER_EACH_TEST_METHOD)
 @ExtendWith(MockitoExtension.class)
@@ -320,81 +322,6 @@ class TransactionalOutboxMockKafkaIT {
             assertDeferredMessage(allMessages.get(3), TEST_MESSAGE_4, null, TOPIC_1, true, 4, beforeSend, afterSend, null, false);
             TestTransaction.end();
         });
-    }
-
-    @Commit
-    @Test
-    void testSendFailResendMessages() {
-        DeferredMessageTestUtil.with(deferredMessageRepository).deleteAllMessagesAfter(() -> {
-            assertThat(deferredMessageRepository.findAll()).isEmpty();
-            Mockito.doAnswer(invocation -> {
-                DeferredMessage deferredMessage = invocation.getArgument(0, DeferredMessage.class);
-                // Make TEST_MESSAGE_1  and TEST_MESSAGE_2 fail because of a TopicAuthorizationException
-                if (Arrays.equals(deferredMessage.getMessage(), messageSerializer.serializeMessage(TEST_MESSAGE_1, TOPIC_1)) ||
-                        Arrays.equals(deferredMessage.getMessage(), messageSerializer.serializeMessage(TEST_MESSAGE_2, TOPIC_2))) {
-                    throw DeferredMessageSendException.topicAuthorizationException(deferredMessage, new RuntimeException("unauthorized on topic"));
-                } else {
-                    // Let all other messages pass successfully
-                    return null;
-                }
-            }).when(deferredMessageSenderMock).sendAsScheduled(any(DeferredMessage.class));
-            final ZonedDateTime beforeSend = ZonedDateTime.now();
-            transactionalOutbox.sendMessageScheduled(TEST_MESSAGE_1, TEST_KEY_1, TOPIC_1);
-            transactionalOutbox.sendMessageScheduled(TEST_MESSAGE_2, TEST_KEY_2, TOPIC_2);
-            transactionalOutbox.sendMessageScheduled(TEST_MESSAGE_3, TEST_KEY_3, TOPIC_3);
-
-            // make messages visible to relay process and wait for them to be sent
-            TestTransaction.end();
-            verify(deferredMessageSenderMock, timeout(5000).times(3)).sendAsScheduled(deferredMessageCaptor.capture());
-            verifyNoMoreInteractions(deferredMessageSenderMock);
-
-            // wait for relay send transaction to be committed
-            DeferredMessageTestUtil.with(deferredMessageRepository).waitForMessageSentOrFailed(deferredMessageCaptor.getValue().getId());
-
-            TestTransaction.start();
-            final ZonedDateTime afterDelivery = ZonedDateTime.now();
-            assertFailedMessages(beforeSend, afterDelivery, 2, 0);
-            FailedMessage failedMessage = transactionalOutbox.findFailedMessages(0, afterDelivery, false, 1).getFirst();
-
-
-            // Reset mock to no longer fail previously failed messages
-            Mockito.reset(deferredMessageSenderMock);
-
-            transactionalOutbox.resendMessageScheduled(failedMessage.getId());
-
-            assertFailedMessages(beforeSend, afterDelivery, 1, 1);
-
-            // make message marked resend visible to relay process and wait for it to be sent
-            TestTransaction.end();
-            verify(deferredMessageSenderMock, timeout(5000).times(1)).sendAsScheduled(deferredMessageCaptor.capture());
-            verifyNoMoreInteractions(deferredMessageSenderMock);
-
-            // Wait for relay process send transaction to be committed
-            DeferredMessageTestUtil.with(deferredMessageRepository).waitForMessageSentOrFailed(deferredMessageCaptor.getValue().getId());
-
-            TestTransaction.start();
-            assertFailedMessages(beforeSend, afterDelivery, 1, 0);
-            TestTransaction.end();
-        });
-    }
-
-    private void assertFailedMessages(ZonedDateTime startingFrom, ZonedDateTime before, int expectedNumFailedNotInResend, int expectedNumFailedInResend) {
-        assertThat(transactionalOutbox.countFailedMessages(false)).isEqualTo(expectedNumFailedNotInResend);
-        assertThat(transactionalOutbox.countFailedMessages(true)).isEqualTo(expectedNumFailedInResend);
-        assertThat(transactionalOutbox.countFailedMessages(startingFrom, before, false)).isEqualTo(expectedNumFailedNotInResend);
-        assertThat(transactionalOutbox.countFailedMessages(startingFrom, before, true)).isEqualTo(expectedNumFailedInResend);
-        List<FailedMessage> failedMessages = transactionalOutbox.findFailedMessages(startingFrom, before, false, expectedNumFailedNotInResend + 1);
-        assertThat(failedMessages).hasSize(expectedNumFailedNotInResend);
-        List<FailedMessage> failedMessagesInResend = transactionalOutbox.findFailedMessages(startingFrom, before, true, expectedNumFailedInResend + 1);
-        assertThat(failedMessagesInResend).hasSize(expectedNumFailedInResend);
-        if (failedMessages.size() > 1) {
-            List<FailedMessage> failedMessagesSublist = transactionalOutbox.findFailedMessages(failedMessages.getFirst().getId(), before, false, failedMessages.size());
-            assertThat(failedMessagesSublist).hasSize(failedMessages.size() - 1);
-        }
-        if (failedMessagesInResend.size() > 1) {
-            List<FailedMessage> failedMessagesSublistInResend = transactionalOutbox.findFailedMessages(failedMessages.getFirst().getId(), before, true, failedMessagesInResend.size());
-            assertThat(failedMessagesSublistInResend).hasSize(failedMessagesSublistInResend.size() - 1);
-        }
     }
 
     private void assertDeferredMessage(DeferredMessage deferredMessage, Message message, Object key, String topic, boolean sendImmediately, int numMessagesSentImmediately, ZonedDateTime beforeCreate, ZonedDateTime afterCreate, ZonedDateTime afterCommit, boolean failed) {

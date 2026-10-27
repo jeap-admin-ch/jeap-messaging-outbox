@@ -7,6 +7,7 @@ import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.testsupport.Deferr
 import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.testsupport.OutboxMockKafkaTestConfig;
 import ch.admin.bit.jeap.messaging.transactionaloutbox.outbox.testsupport.StringMessage;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -26,6 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest(properties = {
@@ -40,6 +46,9 @@ class MessageRelayIT {
 
     @Autowired
     DeferredMessageRepository deferredMessageRepository;
+
+    @Autowired
+    MessageSerializer messageSerializer;
 
     @MockitoBean
     DeferredMessageSender deferredMessageSenderMock;
@@ -178,6 +187,87 @@ class MessageRelayIT {
             assertThat(allDeferredMessages.get(2).getSentScheduled()).isAfterOrEqualTo(afterSend);
             TestTransaction.end();
         });
+    }
+
+    @Commit
+    @Transactional
+    @Test
+    void testSendFailResendMessages() {
+        DeferredMessageTestUtil.with(deferredMessageRepository).deleteAllMessagesAfter(() -> {
+            when(outboxTracing.retrieveCurrentTraceContext()).thenReturn(OutboxTraceContext.builder().traceId(1L).spanId(2L).parentSpanId(3L).build());
+            assertThat(deferredMessageRepository.findAll()).isEmpty();
+            final StringMessage testMessage1 = StringMessage.from("test-message-1");
+            final StringMessage testMessage2 = StringMessage.from("test-message-2");
+            final StringMessage testMessage3 = StringMessage.from("test-message-3");
+            final ArgumentCaptor<DeferredMessage> deferredMessageCaptor = ArgumentCaptor.forClass(DeferredMessage.class);
+            Mockito.doAnswer(invocation -> {
+                DeferredMessage deferredMessage = invocation.getArgument(0, DeferredMessage.class);
+                // Make testMessage1 and testMessage2 fail because of a TopicAuthorizationException
+                if (Arrays.equals(deferredMessage.getMessage(), messageSerializer.serializeMessage(testMessage1, "test-topic-1")) ||
+                        Arrays.equals(deferredMessage.getMessage(), messageSerializer.serializeMessage(testMessage2, "test-topic-2"))) {
+                    throw DeferredMessageSendException.topicAuthorizationException(deferredMessage, new RuntimeException("unauthorized on topic"));
+                } else {
+                    // Let all other messages pass successfully
+                    return null;
+                }
+            }).when(deferredMessageSenderMock).sendAsScheduled(any(DeferredMessage.class));
+            final ZonedDateTime beforeSend = ZonedDateTime.now();
+            transactionalOutbox.sendMessageScheduled(testMessage1, "test-key-1", "test-topic-1");
+            transactionalOutbox.sendMessageScheduled(testMessage2, "test-key-2", "test-topic-2");
+            transactionalOutbox.sendMessageScheduled(testMessage3, "test-key-3", "test-topic-3");
+
+            // make messages visible to relay process and wait for them to be sent
+            TestTransaction.end();
+            verify(deferredMessageSenderMock, timeout(5000).times(3)).sendAsScheduled(deferredMessageCaptor.capture());
+            verifyNoMoreInteractions(deferredMessageSenderMock);
+
+            // wait for relay send transaction to be committed
+            DeferredMessageTestUtil.with(deferredMessageRepository).waitForMessageSentOrFailed(deferredMessageCaptor.getValue().getId());
+
+            TestTransaction.start();
+            final ZonedDateTime afterDelivery = ZonedDateTime.now();
+            assertFailedMessages(beforeSend, afterDelivery, 2, 0);
+            FailedMessage failedMessage = transactionalOutbox.findFailedMessages(0, afterDelivery, false, 1).getFirst();
+
+
+            // Reset mock to no longer fail previously failed messages
+            Mockito.reset(deferredMessageSenderMock);
+
+            transactionalOutbox.resendMessageScheduled(failedMessage.getId());
+
+            assertFailedMessages(beforeSend, afterDelivery, 1, 1);
+
+            // make message marked resend visible to relay process and wait for it to be sent
+            TestTransaction.end();
+            verify(deferredMessageSenderMock, timeout(5000).times(1)).sendAsScheduled(deferredMessageCaptor.capture());
+            verifyNoMoreInteractions(deferredMessageSenderMock);
+
+            // Wait for relay process send transaction to be committed
+            DeferredMessageTestUtil.with(deferredMessageRepository).waitForMessageSentOrFailed(deferredMessageCaptor.getValue().getId());
+
+            TestTransaction.start();
+            assertFailedMessages(beforeSend, afterDelivery, 1, 0);
+            TestTransaction.end();
+        });
+    }
+
+    private void assertFailedMessages(ZonedDateTime startingFrom, ZonedDateTime before, int expectedNumFailedNotInResend, int expectedNumFailedInResend) {
+        assertThat(transactionalOutbox.countFailedMessages(false)).isEqualTo(expectedNumFailedNotInResend);
+        assertThat(transactionalOutbox.countFailedMessages(true)).isEqualTo(expectedNumFailedInResend);
+        assertThat(transactionalOutbox.countFailedMessages(startingFrom, before, false)).isEqualTo(expectedNumFailedNotInResend);
+        assertThat(transactionalOutbox.countFailedMessages(startingFrom, before, true)).isEqualTo(expectedNumFailedInResend);
+        List<FailedMessage> failedMessages = transactionalOutbox.findFailedMessages(startingFrom, before, false, expectedNumFailedNotInResend + 1);
+        assertThat(failedMessages).hasSize(expectedNumFailedNotInResend);
+        List<FailedMessage> failedMessagesInResend = transactionalOutbox.findFailedMessages(startingFrom, before, true, expectedNumFailedInResend + 1);
+        assertThat(failedMessagesInResend).hasSize(expectedNumFailedInResend);
+        if (failedMessages.size() > 1) {
+            List<FailedMessage> failedMessagesSublist = transactionalOutbox.findFailedMessages(failedMessages.getFirst().getId(), before, false, failedMessages.size());
+            assertThat(failedMessagesSublist).hasSize(failedMessages.size() - 1);
+        }
+        if (failedMessagesInResend.size() > 1) {
+            List<FailedMessage> failedMessagesSublistInResend = transactionalOutbox.findFailedMessages(failedMessages.getFirst().getId(), before, true, failedMessagesInResend.size());
+            assertThat(failedMessagesSublistInResend).hasSize(failedMessagesSublistInResend.size() - 1);
+        }
     }
 
 }
