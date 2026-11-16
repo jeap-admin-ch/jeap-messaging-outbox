@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.34.1] - 2026-11-16
+### Changed
+- update jeap-messaging from 19.33.0 to 19.33.1
+- How-to guides under `docs/how-tos/` for integrating Kafka into a service, declaring message contracts,
+  using the idempotent message handler, configuring error handling, updating the message type registry,
+  enabling message signing, switching from Confluent to AWS Glue + MSK IAM authentication, and evolving
+  a self-consumed message type
+
 ## [18.34.0] - 2026-11-14
 
 ### Changed
