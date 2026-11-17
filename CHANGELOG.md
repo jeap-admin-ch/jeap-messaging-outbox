@@ -8,8 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [18.35.0] - 2026-11-17
 
 ### Changed
-
 - Update parent from 11.14.0 to 11.15.0
+- update jeap-messaging from 19.33.1 to 19.34.0
+- update jeap-spring-boot-roles-anywhere-starter from 3.69.0 to 3.70.0
+- update jeap-crypto from 11.31.0 to 11.32.0
+- update jeap-spring-boot-vault-starter from 25.31.0 to 25.32.0
 
 ## [18.34.1] - 2026-11-16
 ### Changed
